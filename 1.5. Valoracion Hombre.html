@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Valoración Clínica - Paciente Hombre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librerías jsPDF para exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --bg-body: #f0fdf4;
+            --primary: #16a34a;
+            --success: #10b981;
+            --danger: #f87171;
+        }
+        body { background-color: var(--bg-body); font-family: 'Inter', system-ui, sans-serif; padding: 1.5rem; }
+        .app-container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.05); overflow: hidden; }
+        .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,163,74,0.15); }
+        .section-card { background: #fafbfc; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.25rem; }
+        .section-card h4 { font-weight: 700; color: #166534; border-bottom: 2px solid #dcfce7; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        
+        /* Estilos de historial y botones */
+        .history-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 18px 20px; border-radius: 18px; margin-bottom: 20px; }
+        .selection-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+        .selection-bar select { flex: 2; min-width: 200px; }
+        .btn-delete-selected { background: #dc3545; color: white; border: none; padding: 10px 18px; border-radius: 14px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn-delete-selected:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Toast de notificaciones */
+        .toast-message { position: fixed; bottom: 24px; right: 24px; background: #166534; color: white; padding: 14px 28px; border-radius: 16px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 10px 30px rgba(0,0,0,0.12); z-index: 999; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; }
+        .toast-message.show { opacity: 1; transform: translateY(0); }
+        .toast-message.error { background: #b02a37; }
+        
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- CABECERA -->
+        <header class="bg-gradient-to-r from-emerald-600 to-green-500 text-white p-6 flex justify-between items-center flex-wrap gap-4 no-print">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">Valoración Paciente Hombre</h1>
+                <p class="text-sm opacity-90">MModelo de Patrones Funcionales de Marjorie Gordon</p>
+            </div>
+            <button onclick="limpiarFormularioCompleto()" class="bg-white/25 hover:bg-white/35 border border-white/30 px-4 py-2 rounded-lg font-semibold text-sm transition">
+                🔄 Nuevo Formulario
+            </button>
+        </header>
+
+        <!-- SISTEMA DE SELECCIÓN Y CARGA LOCAL -->
+        <div class="history-box no-print" style="margin: 20px; background: #f0fdf4; border-color: #bbf7d0;">
+            <label style="color: #166534; font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 4px;">📂 GESTIÓN Y ELIMINACIÓN DE REGISTROS GUARDADOS</label>
+            <div class="selection-bar">
+                <select id="select-archivo" class="form-control">
+                    <option value="">-- Seleccione un registro guardado para modificarlo --</option>
+                </select>
+                <button id="btn-eliminar-seleccionado" class="btn-delete-selected" disabled>
+                    🗑️ Eliminar Registro
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DEL FORMULARIO -->
+        <main class="p-6" id="form-container">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 border-b pb-2">Valoración Paciente Hombre</h3>
+            
+            <!-- 1. DATOS PERSONALES DEL PACIENTE -->
+            <div class="section-card" data-section-title="1. Datos Personales del Paciente">
+                <h4>1. Datos Personales del Paciente</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Fecha de la Valoración:</label>
+                        <input type="date" class="form-control hombre-field" data-field="fecha_valoracion">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Nombre completo:</label>
+                        <input type="text" class="form-control hombre-field" id="nombre_paciente_input" data-field="nombre_completo" placeholder="Nombres y Apellidos">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Fecha de Nacimiento:</label>
+                            <input type="date" class="form-control hombre-field" id="fecha_nacimiento_input" data-field="fecha_nacimiento" onchange="calcularEdadAutomatica()">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Edad (Años):</label>
+                            <input type="text" class="form-control bg-slate-50 font-bold text-emerald-700 hombre-field" id="edad_calculada_display" data-field="edad" readonly placeholder="Automática">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Etapa Vital:</label>
+                        <select class="form-control hombre-field" data-field="etapa_vital">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Adolescente">Adolescente</option>
+                            <option value="Adulto Joven/Maduro">Adulto Joven/Maduro</option>
+                            <option value="Adulto Mayor / Geriátrico">Adulto Mayor / Geriátrico</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Número de Historia Clínica / Expediente:</label>
+                        <input type="text" class="form-control hombre-field" id="historia_clinica_input" data-field="numero_historia_clinica">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Estado Civil / Conyugal:</label>
+                        <select class="form-control hombre-field" data-field="estado_civil">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Soltero">Soltero</option>
+                            <option value="Casado / Unión libre">Casado / Unión libre</option>
+                            <option value="Divorciado">Divorciado</option>
+                            <option value="Viudo">Viudo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Ocupación / Actividad:</label>
+                        <input type="text" class="form-control hombre-field" data-field="ocupacion_actividad">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Escolaridad:</label>
+                        <input type="text" class="form-control hombre-field" data-field="escolaridad">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Teléfono:</label>
+                        <input type="tel" class="form-control hombre-field" data-field="telefono">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Teléfono de Emergencia:</label>
+                        <input type="tel" class="form-control hombre-field" data-field="telefono_emergencia">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Religión:</label>
+                        <input type="text" class="form-control hombre-field" data-field="religion">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Dirección de Residencia:</label>
+                        <input type="text" class="form-control hombre-field" data-field="direccion_residencia">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ANTECEDENTES CLÍNICOS Y ANDROLÓGICOS -->
+            <div class="section-card" data-section-title="2. Antecedentes Clínicos y Andrológicos">
+                <h4>2. Antecedentes Clínicos y Andrológicos</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Antecedentes Patológicos Personales y Familiares:</label>
+                        <textarea class="form-control hombre-field" rows="2" data-field="antecedentes_patologicos"></textarea>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Antecedentes Quirúrgicos / Traumáticos / Alérgicos / Toxicológicos:</label>
+                        <textarea class="form-control hombre-field" rows="2" data-field="antecedentes_quirurgicos_toxicos"></textarea>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Historia Andrológica y Urológica:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Inicio de la pubertad / desarrollo sexual secundario (en adolescentes):</label>
+                                <input type="text" class="form-control hombre-field" data-field="inicio_pubertad">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Síntomas urinarios obstructivos o irritativos (nicturia, chorro débil, pujo):</label>
+                                <select class="form-control hombre-field" data-field="sintomas_urinarios_obstructivos">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Antecedentes de ITS o patologías prostáticas (Prostatitis, HPB, etc.):</label>
+                                <input type="text" class="form-control hombre-field" data-field="its_patologias_prostaticas" placeholder="Sí / No / Especifique">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Tamizaje prostático (APE / Tacto rectal): Fecha y Resultado:</label>
+                                <input type="text" class="form-control hombre-field" data-field="tamizaje_prostatico">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Autoexamen testicular mensual / Revisión:</label>
+                                <select class="form-control hombre-field" data-field="autoexamen_testicular">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Medicamentos Actuales / Tratamientos / Suplementos (ej. protectores gástricos, fármacos para la erección, etc.):</label>
+                        <textarea class="form-control hombre-field" rows="2" data-field="medicamentos_tratamientos_suplementos"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 1 -->
+            <div class="section-card" data-section-title="Patrón 1: Percepción - Manejo de la Salud">
+                <h4>Patrón 1: Percepción - Manejo de la Salud</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">A. Constantes Vitales y Valoración Física:</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Presión Arterial (mmHg):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_1_presion_arterial" placeholder="Ej. 120/80">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia Cardiaca (lpm):</label>
+                                <input type="number" class="form-control hombre-field" data-field="patron_1_frecuencia_cardiaca">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia Respiratoria (rpm):</label>
+                                <input type="number" class="form-control hombre-field" data-field="patron_1_frecuencia_respiratoria">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Temperatura (°C):</label>
+                                <input type="number" step="0.1" class="form-control hombre-field" data-field="patron_1_temperatura">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Saturación de Oxígeno (%):</label>
+                                <input type="number" class="form-control hombre-field" data-field="patron_1_saturacion_oxigeno">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Glucometría (mg/dL):</label>
+                                <input type="number" class="form-control hombre-field" data-field="patron_1_glucometria">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Escala de Dolor (0-10):</label>
+                                <input type="number" class="form-control hombre-field" data-field="patron_1_escala_dolor">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">B. Percepción y Estilos de Vida:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Estado de higiene general y cuidado personal:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_1_higiene_general">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Percepción personal de su estado de salud:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_1_percepcion_salud">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Hábitos tóxicos (Tabaco, alcohol, sustancias y frecuencia):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_1_habitos_toxicos">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Adherencia a controles médicos preventivos o medicina ocupacional/geriátrica:</label>
+                                <select class="form-control hombre-field" data-field="patron_1_adherencia_controles">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 2 -->
+            <div class="section-card" data-section-title="Patrón 2: Nutricional - Metabólico">
+                <h4>Patrón 2: Nutricional - Metabólico</h4>
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <label class="block font-bold text-xs text-blue-900 mb-2">Antropometría y Cálculo Automático de IMC:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Peso actual (kg):</label>
+                                <input type="number" step="0.1" class="form-control hombre-field calc-imc" id="peso_hombre" data-field="patron_2_peso_kg" oninput="calcularIMC()">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Talla (metros):</label>
+                                <input type="number" step="0.01" class="form-control hombre-field calc-imc" id="talla_hombre" data-field="patron_2_talla_metros" placeholder="Ej. 1.75" oninput="calcularIMC()">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">IMC Calculado y Clasificación:</label>
+                                <input type="text" class="form-control bg-white font-bold text-blue-700 hombre-field" id="imc_hombre" data-field="patron_2_imc_calculado" readonly placeholder="Automático">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Perímetro de cintura (cm):</label>
+                                <input type="number" step="0.1" class="form-control hombre-field" data-field="patron_2_perimetro_cintura" placeholder="Riesgo cardiovascular">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-semibold text-xs text-slate-700 mb-1">Número de comidas al día / Consumo de agua diario:</label>
+                            <input type="text" class="form-control hombre-field" data-field="patron_2_comidas_agua">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-xs text-slate-700 mb-1">Restricciones dietéticas o regímenes (ej. hiposódica, baja en grasas):</label>
+                            <input type="text" class="form-control hombre-field" data-field="patron_2_restricciones_dieteticas">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block font-semibold text-xs text-slate-700 mb-1">Estado de hidratación, mucosas y presencia de edemas en extremidades inferiores:</label>
+                            <input type="text" class="form-control hombre-field" data-field="patron_2_hidratacion_edemas">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 3: ELIMINACIÓN Y BALANCE HÍDRICO AUTOMATIZADO -->
+            <div class="section-card" data-section-title="Patrón 3: Eliminación y Balance Hídrico">
+                <h4>Patrón 3: Eliminación y Balance Hídrico</h4>
+                <div class="space-y-4">
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Eliminación Intestinal:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia de deposiciones al día / semana:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_3_frecuencia_deposiciones">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Consistencia de heces:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_3_consistencia_heces">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Estreñimiento, hemorroides o rectorragia:</label>
+                                <select class="form-control hombre-field" data-field="patron_3_estrenimiento">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Uso de laxantes o medidas para la evacuación:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_3_laxantes">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Eliminación Urinaria:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia miccional diurna y nocturna (nicturia):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_3_frecuencia_miccional">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Alteraciones (disuria, retención, chorro débil, goteo):</label>
+                                <select class="form-control hombre-field" data-field="patron_3_urgencia_disuria">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Incontinencia urinaria (geriátrica o post-cirugía prostática):</label>
+                                <select class="form-control hombre-field" data-field="patron_3_incontinencia_urinaria">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Dispositivos de drenaje (sonda vesical, colector urinario/condón):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_3_dispositivos_drenaje" placeholder="Ej. Sonda vesical / Colector">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BALANCE HÍDRICO AUTOMATIZADO -->
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <label class="block font-bold text-xs text-blue-900 mb-2">Balance Hídrico (Suma de Ingestas menos Excretas en 24 horas):</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Ingesta Subtotales -->
+                            <div class="bg-white p-3 rounded border border-blue-100">
+                                <label class="block font-bold text-xs text-blue-800 mb-2">INGESTA (Subtotales en mililitros):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">06:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_ingesta_6h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">12:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_ingesta_12h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">18:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_ingesta_18h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">00:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_ingesta_00h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t">
+                                    <label class="text-xs font-bold text-blue-900">Gran Total Ingesta:</label>
+                                    <input type="text" class="form-control bg-slate-100 font-bold text-blue-800 hombre-field" id="bh_total_ingesta" data-field="bh_gran_total_ingesta" readonly placeholder="0 ml">
+                                </div>
+                            </div>
+
+                            <!-- Excreta Subtotales -->
+                            <div class="bg-white p-3 rounded border border-blue-100">
+                                <label class="block font-bold text-xs text-rose-800 mb-2">EXCRETA (Subtotales en mililitros):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">06:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_excreta_6h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">12:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_excreta_12h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">18:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_excreta_18h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">00:00 horas:</label>
+                                        <input type="number" class="form-control bh-input hombre-field" data-field="bh_excreta_00h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t">
+                                    <label class="text-xs font-bold text-rose-900">Gran Total Excreta:</label>
+                                    <input type="text" class="form-control bg-slate-100 font-bold text-rose-800 hombre-field" id="bh_total_excreta" data-field="bh_gran_total_excreta" readonly placeholder="0 ml">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 p-2 bg-indigo-50 rounded border border-indigo-200">
+                            <label class="block font-bold text-xs text-indigo-900 mb-1">BALANCE HÍDRICO FINAL (Ingesta - Excreta):</label>
+                            <input type="text" class="form-control bg-white font-bold text-indigo-700 hombre-field" id="bh_resultado_final" data-field="bh_resultado_final" readonly placeholder="Calculado automáticamente">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 4: ACTIVIDAD - EJERCICIO (REFORZADO) -->
+            <div class="section-card" data-section-title="Patrón 4: Actividad - Ejercicio">
+                <h4>Patrón 4: Actividad - Ejercicio</h4>
+                <div class="space-y-4">
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Movilidad y Oxigenación:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Paciente ambulatorio:</label>
+                                <select class="form-control hombre-field" data-field="patron_4_ambulatorio">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Se moviliza fuera de cama:</label>
+                                <select class="form-control hombre-field" data-field="patron_4_fuera_cama">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Movilización con ayuda:</label>
+                                <select class="form-control hombre-field" data-field="patron_4_movilizacion_ayuda">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">SpO2 a la movilización / Permanece en unidad:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_spo2_movilizacion" placeholder="Ej. 98% en reposo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Ventilación y Dispositivos Invasivos:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Ventilado (Tipo/Modo):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_ventilado" placeholder="Sí / No y Modo">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Traqueostomía (Tipo/Tamaño):</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_traqueostomia" placeholder="Sí / No / Detalle">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Marcapaso:</label>
+                                <select class="form-control hombre-field" data-field="patron_4_marcapaso">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Interno">Interno</option>
+                                    <option value="Externo">Externo</option>
+                                    <option value="No aplica">No aplica</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Parámetros ventilatorios y otros dispositivos:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_parametros_ventilatorios">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-emerald-900 mb-2">Tutores, Vendajes y Miembros:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Presencia de tutores, vendajes, escayolas, sondas, drenajes:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_tutores_vendajes">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Miembros amputados:</label>
+                                <input type="text" class="form-control hombre-field" data-field="patron_4_miembros_amputados" placeholder="Ninguno / Especificar">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Realiza actividad física / deporte:</label>
+                            <input type="text" class="form-control hombre-field" data-field="patron_4_actividad_fisica" placeholder="Sí/No (Tipo y frecuencia)">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Capacidad funcional / AVD (Barthel/Katz):</label>
+                            <select class="form-control hombre-field" data-field="patron_4_capacidad_funcional">
+                                <option value="">-- Seleccione --</option>
+                                <option value="Independiente">Independiente</option>
+                                <option value="Con ayuda parcial">Con ayuda parcial</option>
+                                <option value="Dependiente total">Dependiente total</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Uso de dispositivos de apoyo (bastón, andador, silla):</label>
+                            <select class="form-control hombre-field" data-field="patron_4_dispositivos_apoyo">
+                                <option value="">-- Seleccione --</option>
+                                <option value="Sí">Sí</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 5 -->
+            <div class="section-card" data-section-title="Patrón 5: Sueño - Reposo">
+                <h4>Patrón 5: Sueño - Reposo</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Horas de sueño nocturno y Calidad:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_5_horas_calidad_sueno" placeholder="Ej. 7 horas, Interrumpido">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Factores que alteran el sueño (Nicturia, dolor, apnea):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_5_factores_alteran_sueno">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Hábitos de descanso o siestas diurnas:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_5_descanso_diurno">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 6 -->
+            <div class="section-card" data-section-title="Patrón 6: Cognitivo - Perceptual">
+                <h4>Patrón 6: Cognitivo - Perceptual</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Integridad de los sentidos (visión, audición - lentes/audífonos):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_6_integridad_sentidos">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Nivel de conciencia y orientación (vigilar deterioro cognitivo):</label>
+                        <select class="form-control hombre-field" data-field="patron_6_nivel_conciencia">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Orientado">Orientado</option>
+                            <option value="Desorientado">Desorientado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Capacidad para la toma de decisiones y comprensión:</label>
+                        <select class="form-control hombre-field" data-field="patron_6_toma_decisiones">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Presencia de dolor crónico (lumbalgia, articular):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_6_dolor_cronico" placeholder="Sí / No y localización">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 7 -->
+            <div class="section-card" data-section-title="Patrón 7: Autopercepción - Autoconcepto">
+                <h4>Patrón 7: Autopercepción - Autoconcepto</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Percepción de su imagen corporal y cambios por edad o cirugías:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_7_imagen_corporal">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Sentimientos de tristeza, apatía, irritabilidad o depresión:</label>
+                        <select class="form-control hombre-field" data-field="patron_7_tristeza_depresion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Expresión de ideas de desesperanza o autolesión:</label>
+                        <select class="form-control hombre-field" data-field="patron_7_ideas_autolesion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 8 -->
+            <div class="section-card" data-section-title="Patrón 8: Rol - Relaciones">
+                <h4>Patrón 8: Rol - Relaciones</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Rol principal desempeñado (padre, proveedor, jubilado):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_8_rol_principal">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Red de apoyo social y familiar percibida:</label>
+                        <select class="form-control hombre-field" data-field="patron_8_red_apoyo">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Fuerte / Adecuada">Fuerte / Adecuada</option>
+                            <option value="Débil / Aislamiento social">Débil / Aislamiento social</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Dificultades en la dinámica familiar o conflictos laborales/sociales:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_8_conflictos">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 9 -->
+            <div class="section-card" data-section-title="Patrón 9: Sexualidad - Reproducción">
+                <h4>Patrón 9: Sexualidad - Reproducción</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Satisfacción con su vida sexual actual:</label>
+                        <select class="form-control hombre-field" data-field="patron_9_satisfaccion_sexual">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Satisfecha">Satisfecha</option>
+                            <option value="Insatisfecha">Insatisfecha</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Disfunciones sexuales (disfunción eréctil, alteración eyaculación):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_9_disfunciones_sexuales" placeholder="Sí / No y tratamiento">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Cambios propios de la andropausia / climaterio masculino:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_9_andropausia">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Antecedentes de infecciones urológicas o de transmisión sexual (ITS):</label>
+                        <select class="form-control hombre-field" data-field="patron_9_its">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 10 -->
+            <div class="section-card" data-section-title="Patrón 10: Afrontamiento - Tolerancia al Estrés">
+                <h4>Patrón 10: Afrontamiento - Tolerancia al Estrés</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Principales fuentes de estrés (económico, laboral, jubilación, autonomía):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_10_fuentes_estres">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Mecanismos habituales de afrontamiento (diálogo, deporte, alcohol):</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_10_mecanismos_afrontamiento">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 11 -->
+            <div class="section-card" data-section-title="Patrón 11: Valores - Creencias">
+                <h4>Patrón 11: Valores - Creencias</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Importancia de la religión, fe o filosofía ante procesos de enfermedad:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_11_importancia_religion">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Conflictos entre valores personales y propuestas terapéuticas:</label>
+                        <input type="text" class="form-control hombre-field" data-field="patron_11_conflictos_valores" placeholder="Sí / No / Especifique">
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- FOOTER ACCIONES -->
+        <footer class="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center flex-wrap gap-4 no-print">
+            <span class="text-xs text-slate-500 font-medium">💾 Guardado automático local activo.</span>
+            <div class="flex gap-3">
+                <button onclick="guardarTodoElPacienteEnBaseDatos()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm shadow transition">
+                    💾 Guardar
+                </button>
+                <button onclick="descargarReportePDF()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-5 py-2.5 rounded-lg text-sm shadow transition">
+                    📥 Descargar PDF
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toastMessage" class="toast-message"></div>
+
+    <script>
+        const STORAGE_KEY = 'valoraciones_hombre_db';
+        let formData = {};
+        let llaveActivaOriginal = null;
+
+        // Cálculo automático de la edad a partir de la fecha de nacimiento
+        function calcularEdadAutomatica() {
+            const fechaNacStr = document.getElementById('fecha_nacimiento_input').value;
+            const display = document.getElementById('edad_calculada_display');
+            if (!fechaNacStr) {
+                if(display) display.value = "";
+                return;
+            }
+            const fechaNac = new Date(fechaNacStr);
+            const hoy = new Date();
+            if (isNaN(fechaNac.getTime())) return;
+
+            let edad = hoy.getFullYear() - fechaNac.getFullYear();
+            const m = hoy.getMonth() - fechaNac.getMonth();
+            if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) {
+                edad--;
+            }
+
+            const textoEdad = edad >= 0 ? `${edad} años` : "Fecha futura no válida";
+            if(display) display.value = textoEdad;
+            formData['edad'] = textoEdad;
+            guardarEstadoLocal();
+        }
+
+        // Cálculo automático del IMC
+        function calcularIMC() {
+            const peso = parseFloat(document.getElementById('peso_hombre').value);
+            const talla = parseFloat(document.getElementById('talla_hombre').value);
+            const imcDisplay = document.getElementById('imc_hombre');
+
+            if (peso > 0 && talla > 0) {
+                const imc = (peso / (talla * talla)).toFixed(2);
+                let clasificacion = "";
+                if (imc < 18.5) clasificacion = "Bajo peso";
+                else if (imc < 25) clasificacion = "Normal";
+                else if (imc < 30) clasificacion = "Sobrepeso";
+                else clasificacion = "Obesidad";
+
+                const resultado = `${imc} (${clasificacion})`;
+                if(imcDisplay) imcDisplay.value = resultado;
+                formData['patron_2_imc_calculado'] = resultado;
+                guardarEstadoLocal();
+            } else {
+                if(imcDisplay) imcDisplay.value = "";
+            }
+        }
+
+        // Cálculo automático del Balance Hídrico (Ingesta total - Excreta total)
+        function calcularBalanceHidrico() {
+            const getVal = (id) => parseFloat(document.querySelector(`[data-field="${id}"]`).value) || 0;
+
+            const ingesta6 = getVal('bh_ingesta_6h');
+            const ingesta12 = getVal('bh_ingesta_12h');
+            const ingesta18 = getVal('bh_ingesta_18h');
+            const ingesta00 = getVal('bh_ingesta_00h');
+            const totalIngesta = ingesta6 + ingesta12 + ingesta18 + ingesta00;
+
+            const excreta6 = getVal('bh_excreta_6h');
+            const excreta12 = getVal('bh_excreta_12h');
+            const excreta18 = getVal('bh_excreta_18h');
+            const excreta00 = getVal('bh_excreta_00h');
+            const totalExcreta = excreta6 + excreta12 + excreta18 + excreta00;
+
+            const balanceFinal = totalIngesta - totalExcreta;
+
+            document.getElementById('bh_total_ingesta').value = totalIngesta + " ml";
+            document.getElementById('bh_total_excreta').value = totalExcreta + " ml";
+
+            const balanceDisplay = document.getElementById('bh_resultado_final');
+            balanceDisplay.value = balanceFinal + " ml" + (balanceFinal >= 0 ? " (Positivo / Neutro)" : " (Negativo)");
+
+            formData['bh_gran_total_ingesta'] = totalIngesta + " ml";
+            formData['bh_gran_total_excreta'] = totalExcreta + " ml";
+            formData['bh_resultado_final'] = balanceDisplay.value;
+            guardarEstadoLocal();
+        }
+
+        function guardarEstadoLocal() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        }
+
+        function setupAutoSaveAndLoad() {
+            document.querySelectorAll('.hombre-field').forEach(input => {
+                const field = input.dataset.field;
+                if(!field) return;
+
+                if (formData[field] !== undefined) {
+                    input.value = formData[field];
+                }
+
+                input.addEventListener('input', (e) => {
+                    formData[field] = e.target.value;
+                    guardarEstadoLocal();
+                    if(field === 'fecha_nacimiento') calcularEdadAutomatica();
+                });
+                input.addEventListener('change', (e) => {
+                    formData[field] = e.target.value;
+                    guardarEstadoLocal();
+                    if(field === 'fecha_nacimiento') calcularEdadAutomatica();
+                });
+            });
+            calcularEdadAutomatica();
+            calcularIMC();
+            calcularBalanceHidrico();
+        }
+
+        function guardarTodoElPacienteEnBaseDatos() {
+            const hcBase = document.getElementById('historia_clinica_input').value.trim();
+            const nombre = document.getElementById('nombre_paciente_input').value.trim();
+
+            if (!hcBase) {
+                mostrarToast("⚠️ El número de Historia Clínica es obligatorio", "error");
+                document.getElementById('historia_clinica_input').focus();
+                return;
+            }
+            if (!nombre) {
+                mostrarToast("⚠️ El nombre del paciente es obligatorio", "error");
+                document.getElementById('nombre_paciente_input').focus();
+                return;
+            }
+
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_hombre_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            let llaveDestino = hcBase;
+            let maxVersion = 0;
+            Object.keys(expedientes).forEach(key => {
+                if (key === hcBase) {
+                    maxVersion = Math.max(maxVersion, 0);
+                } else if (key.startsWith(hcBase + '_V')) {
+                    const num = parseInt(key.split('_V')[1]);
+                    if (!isNaN(num)) maxVersion = Math.max(maxVersion, num);
+                }
+            });
+            if (maxVersion > 0 || expedientes[hcBase]) {
+                llaveDestino = `${hcBase}_V${maxVersion + 1}`;
+            }
+
+            const ahora = new Date();
+            const fechaHoraTexto = ahora.toLocaleString('es-ES', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            const pacienteData = {
+                nombre: nombre,
+                hc: hcBase,
+                llaveRegistro: llaveDestino,
+                fechaGuardadoTexto: fechaHoraTexto,
+                formData: JSON.parse(JSON.stringify(formData))
+            };
+
+            expedientes[llaveDestino] = pacienteData;
+
+            try {
+                localStorage.setItem('expedientes_hombre_storage', JSON.stringify(expedientes));
+                llaveActivaOriginal = llaveDestino;
+                actualizarHistorialLocal();
+                mostrarToast(`✅ Expediente guardado con éxito: ${llaveDestino}`, "success");
+            } catch (e) {
+                mostrarToast("❌ Error al guardar en almacenamiento local.", "error");
+            }
+        }
+
+        function actualizarHistorialLocal() {
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_hombre_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            const select = document.getElementById('select-archivo');
+            const btnEliminar = document.getElementById('btn-eliminar-seleccionado');
+
+            select.innerHTML = '<option value="">-- Seleccione un registro guardado para modificarlo --</option>';
+
+            const keys = Object.keys(expedientes);
+            if (keys.length === 0) {
+                btnEliminar.disabled = true;
+                return;
+            }
+
+            keys.forEach(key => {
+                const p = expedientes[key];
+                let opt = document.createElement('option');
+                opt.value = p.llaveRegistro || p.hc;
+                opt.textContent = `${p.llaveRegistro || p.hc} - ${p.nombre} (${p.fechaGuardadoTexto || 'N/A'})`;
+                select.appendChild(opt);
+            });
+
+            if (llaveActivaOriginal && expedientes[llaveActivaOriginal]) {
+                select.value = llaveActivaOriginal;
+                btnEliminar.disabled = false;
+            }
+        }
+
+        function cargarPacienteDesdeArchivo(llave) {
+            if (!llave) return;
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_hombre_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) { return; }
+
+            const p = expedientes[llave];
+            if (!p) return;
+
+            llaveActivaOriginal = llave;
+            formData = JSON.parse(JSON.stringify(p.formData || {}));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+
+            document.querySelectorAll('.hombre-field').forEach(input => {
+                const field = input.dataset.field;
+                if(field && formData[field] !== undefined) {
+                    input.value = formData[field];
+                }
+            });
+
+            calcularEdadAutomatica();
+            calcularIMC();
+            calcularBalanceHidrico();
+            document.getElementById('select-archivo').value = llave;
+            document.getElementById('btn-eliminar-seleccionado').disabled = false;
+            mostrarToast(`📂 Expediente cargado: ${p.nombre}`, "success");
+        }
+
+        function eliminarExpedienteLocal(llave) {
+            if (!confirm(`¿Desea borrar el expediente "${llave}"?`)) return;
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_hombre_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) { expedientes = {}; }
+
+            if (expedientes[llave]) {
+                delete expedientes[llave];
+                localStorage.setItem('expedientes_hombre_storage', JSON.stringify(expedientes));
+                if (llaveActivaOriginal === llave) limpiarFormularioCompleto();
+                else actualizarHistorialLocal();
+                mostrarToast(`🗑️ Expediente "${llave}" eliminado.`, "success");
+            }
+        }
+
+        function limpiarFormularioCompleto() {
+            if (!confirm("¿Desea limpiar el formulario actual? Se perderán los cambios no guardados.")) return;
+            formData = {};
+            localStorage.removeItem(STORAGE_KEY);
+            llaveActivaOriginal = null;
+
+            document.querySelectorAll('.hombre-field').forEach(input => {
+                input.value = "";
+            });
+            const display = document.getElementById('edad_calculada_display');
+            if(display) display.value = "";
+            const imcDis = document.getElementById('imc_hombre');
+            if(imcDis) imcDis.value = "";
+            const bhFin = document.getElementById('bh_resultado_final');
+            if(bhFin) bhFin.value = "";
+
+            document.getElementById('select-archivo').value = "";
+            document.getElementById('btn-eliminar-seleccionado').disabled = true;
+            mostrarToast("🧹 Formulario limpiado.", "success");
+        }
+
+        // Descarga de PDF agrupada por títulos de sección y con formato de nombre estricto
+        function descargarReportePDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', format: 'letter' });
+
+                const nombrePaciente = document.getElementById('nombre_paciente_input').value.trim() || 'Sin_Nombre';
+                const numRegistro = document.getElementById('historia_clinica_input').value.trim() || 'Sin_Expediente';
+
+                // Encabezado institucional en el PDF
+                doc.setFillColor(22, 163, 74);
+                doc.rect(10, 10, 195, 18, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(13);
+                doc.setFont("Helvetica", "Bold");
+                doc.text("VALORACIÓN CLÍNICA - PACIENTE HOMBRE", 14, 21);
+
+                let bodyContent = [];
+                let hasData = false;
+
+                // Recorrer cada tarjeta de sección para estructurar el reporte agrupado
+                document.querySelectorAll('.section-card').forEach(card => {
+                    const sectionTitle = card.getAttribute('data-section-title') || "Sección Clínica";
+                    let sectionFields = [];
+
+                    card.querySelectorAll('.hombre-field').forEach(input => {
+                        const val = input.value ? input.value.trim() : "";
+                        if(val !== "") {
+                            hasData = true;
+                            const labelEl = input.closest('div')?.querySelector('label') || document.querySelector(`label[for="${input.id}"]`);
+                            let labelTexto = labelEl ? labelEl.textContent.replace(':', '').trim() : input.dataset.field.replace(/_/g, ' ').toUpperCase();
+                            sectionFields.push([labelTexto, val]);
+                        }
+                    });
+
+                    if(sectionFields.length > 0) {
+                        bodyContent.push([{ content: sectionTitle.toUpperCase(), colSpan: 2, styles: { fillColor: [220, 252, 231], textColor: [22, 101, 52], fontStyle: 'bold', halign: 'left' } }]);
+                        sectionFields.forEach(field => {
+                            bodyContent.push(field);
+                        });
+                    }
+                });
+
+                if(!hasData) {
+                    mostrarToast("⚠️ No hay datos ingresados para generar el PDF.", "error");
+                    return;
+                }
+
+                doc.autoTable({
+                    startY: 32,
+                    head: [['Criterio / Campo Clínico', 'Valor Registrado']],
+                    body: bodyContent,
+                    theme: 'grid',
+                    headStyles: { fillColor: [22, 101, 52], textColor: [255, 255, 255], fontSize: 9 },
+                    styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 3 },
+                    columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 105 } }
+                });
+
+                // Nombre estricto: VG-Nombre paciente-Numero registro o historia clínica-fecha y hora
+                const ahora = new Date();
+                const yyyy = ahora.getFullYear();
+                const mm = String(ahora.getMonth() + 1).padStart(2, '0');
+                const dd = String(ahora.getDate()).padStart(2, '0');
+                const hh = String(ahora.getHours()).padStart(2, '0');
+                const min = String(ahora.getMinutes()).padStart(2, '0');
+                const fechaHoraStr = `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+
+                const nombreArchivoFinal = `VG-${nombrePaciente.replace(/\s+/g, '_')}-${numRegistro}-${fechaHoraStr}.pdf`;
+
+                doc.save(nombreArchivoFinal);
+                mostrarToast("📄 PDF generado y descargado con éxito.", "success");
+            } catch (e) {
+                console.error("Error al generar PDF:", e);
+                mostrarToast("❌ Error al generar el documento PDF.", "error");
+            }
+        }
+
+        function mostrarToast(mensaje, tipo = "success") {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = mensaje;
+            toast.className = 'toast-message';
+            if (tipo === "error") toast.classList.add('error');
+            toast.classList.add('show');
+
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        window.onload = function() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try { formData = JSON.parse(stored); } catch(e) { formData = {}; }
+            }
+            setupAutoSaveAndLoad();
+            actualizarHistorialLocal();
+
+            document.getElementById('select-archivo').addEventListener('change', function() {
+                if (this.value) cargarPacienteDesdeArchivo(this.value);
+            });
+            document.getElementById('btn-eliminar-seleccionado').addEventListener('click', function() {
+                const llave = document.getElementById('select-archivo').value;
+                if(llave) eliminarExpedienteLocal(llave);
+            });
+        };
+    </script>
+</body>
+</html>

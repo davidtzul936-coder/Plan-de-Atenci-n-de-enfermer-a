@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Valoración Clínica - Paciente Neonatal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librerías jsPDF para exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root {
+            --bg-body: #eef6ff;
+            --primary: #4f8cf7;
+            --success: #10b981;
+            --danger: #f87171;
+        }
+        body { background-color: var(--bg-body); font-family: 'Inter', system-ui, sans-serif; padding: 1.5rem; }
+        .app-container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 1rem; box-shadow: 0 8px 20px rgba(0,0,0,0.05); overflow: hidden; }
+        .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.9rem; }
+        .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,140,247,0.15); }
+        .section-card { background: #fafbfc; border: 1px solid #e5e7eb; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.25rem; }
+        .section-card h4 { font-weight: 700; color: #1e293b; border-bottom: 2px solid #dbeafe; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        
+        /* Estilos de historial y botones */
+        .history-box { background: #f6faff; border: 1px solid #dce8f5; padding: 18px 20px; border-radius: 18px; margin-bottom: 20px; }
+        .selection-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 6px; }
+        .selection-bar select { flex: 2; min-width: 200px; }
+        .btn-delete-selected { background: #dc3545; color: white; border: none; padding: 10px 18px; border-radius: 14px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
+        .btn-delete-selected:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Toast de notificaciones */
+        .toast-message { position: fixed; bottom: 24px; right: 24px; background: #1e4a7a; color: white; padding: 14px 28px; border-radius: 16px; font-weight: 600; font-size: 0.9rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12); z-index: 999; opacity: 0; transform: translateY(20px); transition: all 0.3s ease; pointer-events: none; }
+        .toast-message.show { opacity: 1; transform: translateY(0); }
+        .toast-message.error { background: #b02a37; }
+        
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- CABECERA -->
+        <header class="bg-gradient-to-r from-blue-600 to-blue-400 text-white p-6 flex justify-between items-center flex-wrap gap-4 no-print">
+            <div>
+                <h1 class="text-2xl font-bold flex items-center gap-2">Valoración Paciente Neonatal</h1>
+                <p class="text-sm opacity-90">Modelo de Patrones Funcionales de Marjorie Gordon</p>
+            </div>
+            <button onclick="limpiarFormularioCompleto()" class="bg-white/25 hover:bg-white/35 border border-white/30 px-4 py-2 rounded-lg font-semibold text-sm transition">
+                🔄 Nuevo Formulario
+            </button>
+        </header>
+
+        <!-- SISTEMA DE SELECCIÓN Y CARGA LOCAL -->
+        <div class="history-box no-print" style="margin: 20px; background: #eef6ff; border-color: #c7daf0;">
+            <label style="color: #1e4a7a; font-size: 0.75rem; font-weight: 700; display: block; margin-bottom: 4px;">📂 GESTIÓN Y ELIMINACIÓN DE REGISTROS GUARDADOS</label>
+            <div class="selection-bar">
+                <select id="select-archivo" class="form-control">
+                    <option value="">-- Seleccione un registro guardado para modificarlo --</option>
+                </select>
+                <button id="btn-eliminar-seleccionado" class="btn-delete-selected" disabled>
+                    🗑️ Eliminar Registro
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DEL FORMULARIO -->
+        <main class="p-6" id="form-container">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 border-b pb-2">Valoración</h3>
+            
+            <!-- 1. DATOS PERSONALES DEL NEONATO -->
+            <div class="section-card" data-section-title="1. Datos Personales del Recién Nacido">
+                <h4>1. Datos Personales del Recién Nacido</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Fecha de la Valoración:</label>
+                        <input type="date" class="form-control neo-field" data-field="fecha_valoracion">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Nombre del Recién Nacido:</label>
+                        <input type="text" class="form-control neo-field" id="nombre_paciente_input" data-field="nombre_recien_nacido" placeholder="Nombres y Apellidos">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Sexo:</label>
+                        <select class="form-control neo-field" data-field="sexo">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Masculino">Masculino</option>
+                            <option value="Femenino">Femenino</option>
+                            <option value="Indeterminado">Indeterminado</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Fecha de Nacimiento:</label>
+                            <input type="date" class="form-control neo-field" id="fecha_nacimiento_input" data-field="fecha_nacimiento" onchange="calcularEdadNeonatoAutomatica()">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Hora de Nacimiento:</label>
+                            <input type="time" class="form-control neo-field" data-field="hora_nacimiento">
+                        </div>
+                    </div>
+                    <!-- Cálculo automático de edad -->
+                    <div class="md:col-span-2 bg-blue-50 p-3 rounded border border-blue-200">
+                        <label class="block font-bold text-xs text-blue-900 mb-1">Cálculo Automático de Edad Actual del Neonato:</label>
+                        <input type="text" class="form-control bg-white font-bold text-blue-700 neo-field" id="edad_calculada_display" data-field="edad_calculada_automatica" readonly placeholder="Se calculará automáticamente al ingresar la fecha de nacimiento">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Edad Gestacional (por Capurro/Ballard o FUM):</label>
+                        <input type="text" class="form-control neo-field" data-field="edad_gestacional" placeholder="Ej. 38 semanas">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Número de Historia Clínica / Expediente:</label>
+                        <input type="text" class="form-control neo-field" id="historia_clinica_input" data-field="numero_historia_clinica">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Nombre de la Madre:</label>
+                        <input type="text" class="form-control neo-field" data-field="nombre_madre">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Edad de la Madre:</label>
+                        <input type="number" class="form-control neo-field" data-field="edad_madre" placeholder="Años">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Nombre del Padre / Tutor:</label>
+                        <input type="text" class="form-control neo-field" data-field="nombre_padre_tutor">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Teléfono de Contacto / Emergencia:</label>
+                        <input type="tel" class="form-control neo-field" data-field="telefono_contacto">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Procedencia / Dirección:</label>
+                        <input type="text" class="form-control neo-field" data-field="procedencia_direccion">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ANTECEDENTES PERINATALES Y CLÍNICOS -->
+            <div class="section-card" data-section-title="2. Antecedentes Perinatales y Clínicos">
+                <h4>2. Antecedentes Perinatales y Clínicos</h4>
+                <div class="space-y-4">
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Antecedentes Prenatales:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Control prenatal:</label>
+                                <select class="form-control neo-field" data-field="control_prenatal">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Número de consultas prenatales:</label>
+                                <input type="number" class="form-control neo-field" data-field="numero_consultas_prenatales" placeholder="Ej. 6">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Patologías maternas durante el embarazo (Infecciones, HIE, Diabetes gestacional, etc.):</label>
+                                <input type="text" class="form-control neo-field" data-field="patologias_maternas">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Ingesta de medicamentos / sustancias / tóxicos / drogas / alcohol:</label>
+                                <input type="text" class="form-control neo-field" data-field="ingesta_toxicos_maternos">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Serologías maternas (VIH, VDRL, Toxoplasmosis, CMV, etc.):</label>
+                                <input type="text" class="form-control neo-field" data-field="serologias_maternas">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Antecedentes Natales / Del Nacimiento:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Vía de nacimiento:</label>
+                                <select class="form-control neo-field" data-field="via_nacimiento">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Eutócico (Vaginal)">Eutócico (Vaginal)</option>
+                                    <option value="Cesárea">Cesárea</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Indicación de Cesárea (si aplica):</label>
+                                <input type="text" class="form-control neo-field" data-field="indicacion_cesarea">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Líquido amniótico:</label>
+                                <select class="form-control neo-field" data-field="liquido_amniotico">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Claro">Claro</option>
+                                    <option value="Meconial fluido">Meconial fluido</option>
+                                    <option value="Meconial espeso">Meconial espeso</option>
+                                    <option value="Sanguinolento">Sanguinolento</option>
+                                    <option value="Fétido">Fétido</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block font-semibold text-xs text-slate-700 mb-1">Test de Apgar al minuto:</label>
+                                    <input type="text" class="form-control neo-field" data-field="test_apgar_1_minuto">
+                                </div>
+                                <div>
+                                    <label class="block font-semibold text-xs text-slate-700 mb-1">Test de Apgar a los 5 minutos:</label>
+                                    <input type="text" class="form-control neo-field" data-field="test_apgar_5_minutos">
+                                </div>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Reanimación neonatal requerida:</label>
+                                <input type="text" class="form-control neo-field" data-field="reanimacion_neonatal" placeholder="Ej. Estimulación, O2 flujo libre, VPP, Intubación">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Antropometría al Nacer y Actual:</label>
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Peso al nacer (g):</label>
+                                <input type="number" class="form-control neo-field" data-field="peso_al_nacer">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Peso actual (g):</label>
+                                <input type="number" class="form-control neo-field" data-field="peso_actual">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Talla (cm):</label>
+                                <input type="number" step="0.1" class="form-control neo-field" data-field="talla_centimetros">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Perímetro Cefálico (cm):</label>
+                                <input type="number" step="0.1" class="form-control neo-field" data-field="perimetro_cefalico">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Perímetro Torácico (cm):</label>
+                                <input type="number" step="0.1" class="form-control neo-field" data-field="perimetro_toracico">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Diagnóstico Médico Actual / Problemas Neonatales:</label>
+                        <textarea class="form-control neo-field" rows="2" data-field="diagnostico_medico_actual"></textarea>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Medicamentos / Tratamientos Actuales (Fototerapia, Antibioticoterapia, etc.):</label>
+                        <textarea class="form-control neo-field" rows="2" data-field="medicamentos_tratamientos_actuales"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 1 -->
+            <div class="section-card" data-section-title="Patrón 1: Percepción - Manejo de la Salud">
+                <h4>Patrón 1: Percepción - Manejo de la Salud</h4>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-bold text-sm text-blue-900 mb-2">A. Constantes Vitales y Valoración Física:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia Cardiaca (lpm) [Normal: 120-160]:</label>
+                                <input type="number" class="form-control neo-field" data-field="patron_1_frecuencia_cardiaca">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia Respiratoria (rpm) [Normal: 40-60]:</label>
+                                <input type="number" class="form-control neo-field" data-field="patron_1_frecuencia_respiratoria">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Temperatura Axilar (°C) [36.5-37.5]:</label>
+                                <input type="number" step="0.1" class="form-control neo-field" data-field="patron_1_temperatura_axilar">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Saturación de Oxígeno (%):</label>
+                                <input type="number" class="form-control neo-field" data-field="patron_1_saturacion_oxigeno">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Llenado capilar (segundos):</label>
+                                <input type="number" class="form-control neo-field" data-field="patron_1_llenado_capilar">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Test de Silverman-Andersen (Puntuación):</label>
+                                <input type="number" class="form-control neo-field" data-field="patron_1_test_silverman_andersen">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block font-bold text-sm text-blue-900 mb-2">B. Estado General y Manejo de la Salud:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Estado de actividad / alerta:</label>
+                                <select class="form-control neo-field" data-field="patron_1_estado_actividad_alerta">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Activo / Vigoroso">Activo / Vigoroso</option>
+                                    <option value="Letárgico">Letárgico</option>
+                                    <option value="Hipóactivo">Hipóactivo</option>
+                                    <option value="Irritable">Irritable</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Higiene e integridad cutánea (Coloración):</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_1_coloracion_cutanea" placeholder="Ej. Rosado, Pálido, Ictérico, Cianótico">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Presencia de lesiones, exantemas, lanugo o unto sebáceo:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_1_lesiones_exantemas">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Integridad del cordón umbilical:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_1_cordon_umbilical" placeholder="Ej. Seco/Limpio, Húmedo, Eritema">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Protocolos profilácticos (Vitamina K, BCG, etc.):</label>
+                                <select class="form-control neo-field" data-field="patron_1_protocolos_profilacticos">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Administrados">Administrados</option>
+                                    <option value="Pendientes">Pendientes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 2 -->
+            <div class="section-card" data-section-title="Patrón 2: Nutricional - Metabólico">
+                <h4>Patrón 2: Nutricional - Metabólico</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Tipo de alimentación:</label>
+                        <select class="form-control neo-field" data-field="patron_2_tipo_alimentacion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Lactancia Materna Exclusiva">Lactancia Materna Exclusiva</option>
+                            <option value="Fórmula neonatal">Fórmula neonatal</option>
+                            <option value="Mixta">Mixta</option>
+                            <option value="Ayuno absoluto">Ayuno absoluto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Vía de administración:</label>
+                        <select class="form-control neo-field" data-field="patron_2_via_administracion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Succión al pecho">Succión al pecho</option>
+                            <option value="Biberón">Biberón</option>
+                            <option value="Sonda orogástrica / nasogástrica">Sonda orogástrica / nasogástrica</option>
+                            <option value="Nutrición Parenteral Total / Soluciones intravenosas">Nutrición Parenteral Total / Soluciones intravenosas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Reflejos de succión y deglución:</label>
+                        <select class="form-control neo-field" data-field="patron_2_reflejos_succion_deglucion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Presentes y coordinados">Presentes y coordinados</option>
+                            <option value="Débiles">Débiles</option>
+                            <option value="Ausentes">Ausentes</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia tomas (cada horas):</label>
+                            <input type="text" class="form-control neo-field" data-field="patron_2_frecuencia_tomas">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-xs text-slate-700 mb-1">Volumen por toma (mililitros):</label>
+                            <input type="text" class="form-control neo-field" data-field="patron_2_volumen_toma">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Tolerancia alimentaria:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_2_tolerancia_alimentaria" placeholder="Ej. Tolera adecuadamente, residuo gástrico, emesis">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Estado de hidratación (Mucosas, fontanelas):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_2_estado_hidratacion" placeholder="Ej. Hidratado, normotensa, hundida">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Glucometría neonatal (miligramos por decilitro):</label>
+                        <input type="number" class="form-control neo-field" data-field="patron_2_glucometria_neonatal">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Pérdida de peso fisiológica estimada (porcentaje):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_2_perdida_peso_fisiologica">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 3: ELIMINACIÓN Y BALANCE HÍDRICO AUTOMATIZADO -->
+            <div class="section-card" data-section-title="Patrón 3: Eliminación y Balance Hídrico">
+                <h4>Patrón 3: Eliminación y Balance Hídrico</h4>
+                <div class="space-y-4">
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Hábitos de Evacuación Intestinal:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Eliminación de meconio:</label>
+                                <select class="form-control neo-field" data-field="patron_3_eliminacion_meconio">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Presente en primeras 24-48 horas">Presente en primeras 24-48 horas</option>
+                                    <option value="Ausente / Retrasada">Ausente / Retrasada</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Características de las deposiciones:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_3_caracteristicas_heces" placeholder="Ej. Meconiales, de transición, amarillas">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia de evacuaciones al día:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_3_frecuencia_evacuaciones">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Hábitos de Evacuación Urinaria (Diuresis):</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Emisión de primera micción:</label>
+                                <select class="form-control neo-field" data-field="patron_3_primera_miccion">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="En las primeras 24 horas">En las primeras 24 horas</option>
+                                    <option value="Ausente">Ausente</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Frecuencia / Cambios en pañal (micciones al día):</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_3_frecuencia_micciones">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Características de la orina:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_3_caracteristicas_orina" placeholder="Ej. Clara, concentrada con uratos, hematuria">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Dispositivos de drenaje:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_3_dispositivos_drenaje" placeholder="Ej. Pañal, sonda vesical">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BALANCE HÍDRICO AUTOMATIZADO -->
+                    <div class="bg-blue-50 p-3 rounded border border-blue-200">
+                        <label class="block font-bold text-xs text-blue-900 mb-2">Balance Hídrico (Suma de Ingestas menos Excretas en 24 horas):</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Ingesta Subtotales -->
+                            <div class="bg-white p-3 rounded border border-blue-100">
+                                <label class="block font-bold text-xs text-blue-800 mb-2">INGESTA (Subtotales en mililitros):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">06:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_ingesta_6h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">12:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_ingesta_12h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">18:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_ingesta_18h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">00:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_ingesta_00h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t">
+                                    <label class="text-xs font-bold text-blue-900">Gran Total Ingesta:</label>
+                                    <input type="text" class="form-control bg-slate-100 font-bold text-blue-800 neo-field" id="bh_total_ingesta" data-field="bh_gran_total_ingesta" readonly placeholder="0 ml">
+                                </div>
+                            </div>
+
+                            <!-- Excreta Subtotales -->
+                            <div class="bg-white p-3 rounded border border-blue-100">
+                                <label class="block font-bold text-xs text-rose-800 mb-2">EXCRETA (Subtotales en mililitros):</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">06:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_excreta_6h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">12:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_excreta_12h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">18:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_excreta_18h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-600 font-semibold">00:00 horas:</label>
+                                        <input type="number" class="form-control neo-field bh-input" data-field="bh_excreta_00h" placeholder="0" oninput="calcularBalanceHidrico()">
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t">
+                                    <label class="text-xs font-bold text-rose-900">Gran Total Excreta:</label>
+                                    <input type="text" class="form-control bg-slate-100 font-bold text-rose-800 neo-field" id="bh_total_excreta" data-field="bh_gran_total_excreta" readonly placeholder="0 ml">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 p-2 bg-indigo-50 rounded border border-indigo-200">
+                            <label class="block font-bold text-xs text-indigo-900 mb-1">BALANCE HÍDRICO FINAL (Ingesta - Excreta):</label>
+                            <input type="text" class="form-control bg-white font-bold text-indigo-700 neo-field" id="bh_resultado_final" data-field="bh_resultado_final" readonly placeholder="Calculado automáticamente">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 4: ACTIVIDAD - EJERCICIO (REFORZADO) -->
+            <div class="section-card" data-section-title="Patrón 4: Actividad - Ejercicio">
+                <h4>Patrón 4: Actividad - Ejercicio</h4>
+                <div class="space-y-4">
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Movilidad y Oxigenación:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Paciente ambulatorio:</label>
+                                <select class="form-control neo-field" data-field="patron_4_ambulatorio">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Se moviliza fuera de cama:</label>
+                                <select class="form-control neo-field" data-field="patron_4_fuera_cama">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Movilización con ayuda:</label>
+                                <select class="form-control neo-field" data-field="patron_4_movilizacion_ayuda">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">SpO2 a la movilización / Permanece en unidad:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_spo2_movilizacion" placeholder="Ej. 98% en reposo">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Ventilación y Dispositivos Invasivos:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Ventilado (Tipo/Modo):</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_ventilado" placeholder="Sí / No y Modo">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Traqueostomía (Tipo/Tamaño):</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_traqueostomia" placeholder="Sí / No / Detalle">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Marcapaso:</label>
+                                <select class="form-control neo-field" data-field="patron_4_marcapaso">
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="Interno">Interno</option>
+                                    <option value="Externo">Externo</option>
+                                    <option value="No aplica">No aplica</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Parámetros ventilatorios y otros dispositivos:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_parametros_ventilatorios">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-3 rounded border border-slate-200">
+                        <label class="block font-bold text-sm text-blue-900 mb-2">Tutores, Vendajes y Miembros:</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Presencia de tutores, vendajes, escayolas, sondas, drenajes:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_tutores_vendajes">
+                            </div>
+                            <div>
+                                <label class="block font-semibold text-xs text-slate-700 mb-1">Miembros amputados:</label>
+                                <input type="text" class="form-control neo-field" data-field="patron_4_miembros_amputados" placeholder="Ninguno / Especificar">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Postura general / Tono muscular:</label>
+                            <input type="text" class="form-control neo-field" data-field="patron_4_postura_tono_muscular" placeholder="Ej. Flexión simétrica, hipotonía">
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-sm text-slate-700 mb-1">Reflejos arcaicos presentes (Moro, búsqueda, succión, prensión):</label>
+                            <input type="text" class="form-control neo-field" data-field="patron_4_reflejos_arcaicos">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 5 -->
+            <div class="section-card" data-section-title="Patrón 5: Sueño - Reposo">
+                <h4>Patrón 5: Sueño - Reposo</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Ciclos de sueño:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_5_ciclos_sueno" placeholder="Ej. Distingue ciclos, somnolencia, letargo">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Horas estimadas de sueño al día:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_5_horas_sueno">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Respuesta a estímulos del entorno:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_5_respuesta_estimulos" placeholder="Ej. Se adapta/calma, se sobresalta">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 6 -->
+            <div class="section-card" data-section-title="Patrón 6: Cognitivo - Perceptual">
+                <h4>Patrón 6: Cognitivo - Perceptual</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Respuesta visual (fijación, seguimiento):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_6_respuesta_visual">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Respuesta auditiva (reflejo cócleo-palpebral):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_6_respuesta_auditiva">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Escala de dolor neonatal evaluada:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_6_escala_dolor">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Simetría facial y respuesta neurológica:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_6_simetria_facial">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 7 -->
+            <div class="section-card" data-section-title="Patrón 7: Autopercepción - Autoconcepto">
+                <h4>Patrón 7: Autopercepción - Autoconcepto (Vínculo y Respuesta al Entorno)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Capacidad de autorregulación (chupete, manos a boca):</label>
+                        <select class="form-control neo-field" data-field="patron_7_autorregulacion">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Llanto:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_7_llanto" placeholder="Ej. Vigoroso, débil, inconsolable">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 8 -->
+            <div class="section-card" data-section-title="Patrón 8: Rol - Relaciones">
+                <h4>Patrón 8: Rol - Relaciones (Vínculo Materno-Paterno / Familiar)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Interacción madre/padre con el recién nacido:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_8_interaccion_padres" placeholder="Ej. Apego precoz positivo, visitas frecuentes">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Método Madre Canguro / Piel a Piel:</label>
+                        <select class="form-control neo-field" data-field="patron_8_metodo_madre_canguro">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No (por condición clínica)">No (por condición clínica)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Red de apoyo familiar para el alta:</label>
+                        <select class="form-control neo-field" data-field="patron_8_red_apoyo_familiar">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 9 -->
+            <div class="section-card" data-section-title="Patrón 9: Sexualidad - Reproducción">
+                <h4>Patrón 9: Sexualidad - Reproducción (Desarrollo Anatómico)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Valoración Genitourinaria (Varón / Niña):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_9_valoracion_genitourinaria" placeholder="Ej. Testículos descritos, labios mayores cubren menores">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Anomalías congénitas o permeabilidad anal:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_9_anomalias_permeabilidad_anal" placeholder="Ej. Permeable, alteración">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 10 -->
+            <div class="section-card" data-section-title="Patrón 10: Afrontamiento - Tolerancia al Estrés">
+                <h4>Patrón 10: Afrontamiento - Tolerancia al Estrés (Respuesta Neonatal)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Signos de estrés neurovegetativo ante manipulaciones:</label>
+                        <select class="form-control neo-field" data-field="patron_10_signos_estres">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Aplicación de medidas de confort (Nidito, reducción ruidos):</label>
+                        <select class="form-control neo-field" data-field="patron_10_medidas_confort">
+                            <option value="">-- Seleccione --</option>
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PATRÓN 11 -->
+            <div class="section-card" data-section-title="Patrón 11: Valores - Creencias">
+                <h4>Patrón 11: Valores - Creencias (Entorno Familiar y Cultural)</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Solicitud de prácticas espirituales o rituales (Bautismo, etc.):</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_11_practicas_espirituales" placeholder="Sí / No / Especificar">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-sm text-slate-700 mb-1">Decisiones ante tratamientos de soporte vital basadas en valores:</label>
+                        <input type="text" class="form-control neo-field" data-field="patron_11_decisiones_soporte_vital">
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- FOOTER ACCIONES -->
+        <footer class="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center flex-wrap gap-4 no-print">
+            <span class="text-xs text-slate-500 font-medium">💾 Guardado automático local activo.</span>
+            <div class="flex gap-3">
+                <button onclick="guardarTodoElPacienteEnBaseDatos()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm shadow transition">
+                    💾 Guardar
+                </button>
+                <button onclick="descargarReportePDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm shadow transition">
+      📥 Descargar PDF
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toastMessage" class="toast-message"></div>
+
+    <script>
+        const STORAGE_KEY = 'valoraciones_neonatal_db';
+        let formData = {};
+        let llaveActivaOriginal = null;
+
+        // Cálculo automático de edad del neonato
+        function calcularEdadNeonatoAutomatica() {
+            const fechaNacStr = document.getElementById('fecha_nacimiento_input').value;
+            const display = document.getElementById('edad_calculada_display');
+            if (!fechaNacStr) {
+                if(display) display.value = "";
+                return;
+            }
+            const fechaNac = new Date(fechaNacStr);
+            const hoy = new Date();
+            if (isNaN(fechaNac.getTime())) return;
+
+            const diffTime = hoy - fechaNac;
+            if (diffTime < 0) {
+                if(display) display.value = "Fecha futura no válida";
+                return;
+            }
+
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            let textoEdad = "";
+            if (diffDays === 0) textoEdad = "Recién nacido (Menos de 1 día)";
+            else if (diffDays < 7) textoEdad = `${diffDays} día(s)`;
+            else {
+                const diffWeeks = Math.floor(diffDays / 7);
+                const remainingDays = diffDays % 7;
+                if (diffDays < 30) {
+                    textoEdad = remainingDays > 0 ? `${diffWeeks} semana(s) y ${remainingDays} día(s)` : `${diffWeeks} semana(s)`;
+                } else {
+                    const diffMonths = Math.floor(diffDays / 30.44);
+                    textoEdad = `${diffMonths} mes(es) aprox. (${diffDays} días)`;
+                }
+            }
+
+            if(display) display.value = textoEdad;
+            formData['edad_calculada_automatica'] = textoEdad;
+            guardarEstadoLocal();
+        }
+
+        // Cálculo automático del Balance Hídrico (Ingesta total - Excreta total)
+        function calcularBalanceHidrico() {
+            const getVal = (id) => parseFloat(document.querySelector(`[data-field="${id}"]`).value) || 0;
+
+            const ingesta6 = getVal('bh_ingesta_6h');
+            const ingesta12 = getVal('bh_ingesta_12h');
+            const ingesta18 = getVal('bh_ingesta_18h');
+            const ingesta00 = getVal('bh_ingesta_00h');
+            const totalIngesta = ingesta6 + ingesta12 + ingesta18 + ingesta00;
+
+            const excreta6 = getVal('bh_excreta_6h');
+            const excreta12 = getVal('bh_excreta_12h');
+            const excreta18 = getVal('bh_excreta_18h');
+            const excreta00 = getVal('bh_excreta_00h');
+            const totalExcreta = excreta6 + excreta12 + excreta18 + excreta00;
+
+            const balanceFinal = totalIngesta - totalExcreta;
+
+            document.getElementById('bh_total_ingesta').value = totalIngesta + " ml";
+            document.getElementById('bh_total_excreta').value = totalExcreta + " ml";
+
+            const balanceDisplay = document.getElementById('bh_resultado_final');
+            balanceDisplay.value = balanceFinal + " ml" + (balanceFinal >= 0 ? " (Positivo / Neutro)" : " (Negativo)");
+
+            formData['bh_gran_total_ingesta'] = totalIngesta + " ml";
+            formData['bh_gran_total_excreta'] = totalExcreta + " ml";
+            formData['bh_resultado_final'] = balanceDisplay.value;
+            guardarEstadoLocal();
+        }
+
+        function guardarEstadoLocal() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        }
+
+        function setupAutoSaveAndLoad() {
+            document.querySelectorAll('.neo-field').forEach(input => {
+                const field = input.dataset.field;
+                if(!field) return;
+
+                if (formData[field] !== undefined) {
+                    input.value = formData[field];
+                }
+
+                input.addEventListener('input', (e) => {
+                    formData[field] = e.target.value;
+                    guardarEstadoLocal();
+                    if(field === 'fecha_nacimiento') calcularEdadNeonatoAutomatica();
+                });
+                input.addEventListener('change', (e) => {
+                    formData[field] = e.target.value;
+                    guardarEstadoLocal();
+                    if(field === 'fecha_nacimiento') calcularEdadNeonatoAutomatica();
+                });
+            });
+            calcularEdadNeonatoAutomatica();
+            calcularBalanceHidrico();
+        }
+
+        // Guardar expediente en base de datos local con soporte de versiones
+        function guardarTodoElPacienteEnBaseDatos() {
+            const hcBase = document.getElementById('historia_clinica_input').value.trim();
+            const nombre = document.getElementById('nombre_paciente_input').value.trim();
+
+            if (!hcBase) {
+                mostrarToast("⚠️ El número de Historia Clínica es obligatorio", "error");
+                document.getElementById('historia_clinica_input').focus();
+                return;
+            }
+            if (!nombre) {
+                mostrarToast("⚠️ El nombre del paciente es obligatorio", "error");
+                document.getElementById('nombre_paciente_input').focus();
+                return;
+            }
+
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_neonatal_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            let llaveDestino = hcBase;
+            let maxVersion = 0;
+            Object.keys(expedientes).forEach(key => {
+                if (key === hcBase) {
+                    maxVersion = Math.max(maxVersion, 0);
+                } else if (key.startsWith(hcBase + '_V')) {
+                    const num = parseInt(key.split('_V')[1]);
+                    if (!isNaN(num)) maxVersion = Math.max(maxVersion, num);
+                }
+            });
+            if (maxVersion > 0 || expedientes[hcBase]) {
+                llaveDestino = `${hcBase}_V${maxVersion + 1}`;
+            }
+
+            const ahora = new Date();
+            const fechaHoraTexto = ahora.toLocaleString('es-ES', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            const pacienteData = {
+                nombre: nombre,
+                hc: hcBase,
+                llaveRegistro: llaveDestino,
+                fechaGuardadoTexto: fechaHoraTexto,
+                formData: JSON.parse(JSON.stringify(formData))
+            };
+
+            expedientes[llaveDestino] = pacienteData;
+
+            try {
+                localStorage.setItem('expedientes_neonatal_storage', JSON.stringify(expedientes));
+                llaveActivaOriginal = llaveDestino;
+                actualizarHistorialLocal();
+                mostrarToast(`✅ Expediente guardado con éxito: ${llaveDestino}`, "success");
+            } catch (e) {
+                mostrarToast("❌ Error al guardar en almacenamiento local.", "error");
+            }
+        }
+
+        function actualizarHistorialLocal() {
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_neonatal_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            const select = document.getElementById('select-archivo');
+            const btnEliminar = document.getElementById('btn-eliminar-seleccionado');
+
+            select.innerHTML = '<option value="">-- Seleccione un un registro guardado para modificarlo --</option>';
+
+            const keys = Object.keys(expedientes);
+            if (keys.length === 0) {
+                btnEliminar.disabled = true;
+                return;
+            }
+
+            keys.forEach(key => {
+                const p = expedientes[key];
+                let opt = document.createElement('option');
+                opt.value = p.llaveRegistro || p.hc;
+                opt.textContent = `${p.llaveRegistro || p.hc} - ${p.nombre} (${p.fechaGuardadoTexto || 'N/A'})`;
+                select.appendChild(opt);
+            });
+
+            if (llaveActivaOriginal && expedientes[llaveActivaOriginal]) {
+                select.value = llaveActivaOriginal;
+                btnEliminar.disabled = false;
+            }
+        }
+
+        function cargarPacienteDesdeArchivo(llave) {
+            if (!llave) return;
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_neonatal_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) { return; }
+
+            const p = expedientes[llave];
+            if (!p) return;
+
+            llaveActivaOriginal = llave;
+            formData = JSON.parse(JSON.stringify(p.formData || {}));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+
+            document.querySelectorAll('.neo-field').forEach(input => {
+                const field = input.dataset.field;
+                if(field && formData[field] !== undefined) {
+                    input.value = formData[field];
+                }
+            });
+
+            calcularEdadNeonatoAutomatica();
+            calcularBalanceHidrico();
+            document.getElementById('select-archivo').value = llave;
+            document.getElementById('btn-eliminar-seleccionado').disabled = false;
+            mostrarToast(`📂 Expediente cargado: ${p.nombre}`, "success");
+        }
+
+        function eliminarExpedienteLocal(llave) {
+            if (!confirm(`¿Desea borrar el expediente "${llave}"?`)) return;
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem('expedientes_neonatal_storage');
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) { expedientes = {}; }
+
+            if (expedientes[llave]) {
+                delete expedientes[llave];
+                localStorage.setItem('expedientes_neonatal_storage', JSON.stringify(expedientes));
+                if (llaveActivaOriginal === llave) limpiarFormularioCompleto();
+                else actualizarHistorialLocal();
+                mostrarToast(`🗑️ Expediente "${llave}" eliminado.`, "success");
+            }
+        }
+
+        function limpiarFormularioCompleto() {
+            if (!confirm("¿Desea limpiar el formulario actual? Se perderán los cambios no guardados.")) return;
+            formData = {};
+            localStorage.removeItem(STORAGE_KEY);
+            llaveActivaOriginal = null;
+
+            document.querySelectorAll('.neo-field').forEach(input => {
+                input.value = "";
+            });
+            const display = document.getElementById('edad_calculada_display');
+            if(display) display.value = "";
+            const bhFin = document.getElementById('bh_resultado_final');
+            if(bhFin) bhFin.value = "";
+
+            document.getElementById('select-archivo').value = "";
+            document.getElementById('btn-eliminar-seleccionado').disabled = true;
+            mostrarToast("🧹 Formulario limpiado.", "success");
+        }
+
+        // Generación de PDF optimizada: Agrupando por títulos de sección y omitiendo vacíos
+        function descargarReportePDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', format: 'letter' });
+
+                const nombrePaciente = document.getElementById('nombre_paciente_input').value.trim() || 'Sin_Nombre';
+                const numRegistro = document.getElementById('historia_clinica_input').value.trim() || 'Sin_Expediente';
+
+                // Encabezado institucional en el PDF
+                doc.setFillColor(37, 99, 235);
+                doc.rect(10, 10, 195, 18, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(13);
+                doc.setFont("Helvetica", "Bold");
+                doc.text("VALORACIÓN CLÍNICA - PACIENTE NEONATAL", 14, 21);
+
+                let bodyContent = [];
+                let hasData = false;
+
+                // Recorrer cada tarjeta de sección para estructurar el reporte agrupado
+                document.querySelectorAll('.section-card').forEach(card => {
+                    const sectionTitle = card.getAttribute('data-section-title') || "Sección Clínica";
+                    let sectionFields = [];
+
+                    card.querySelectorAll('.neo-field').forEach(input => {
+                        const val = input.value ? input.value.trim() : "";
+                        if(val !== "") {
+                            hasData = true;
+                            const labelEl = input.closest('div')?.querySelector('label') || document.querySelector(`label[for="${input.id}"]`);
+                            let labelTexto = labelEl ? labelEl.textContent.replace(':', '').trim() : input.dataset.field.replace(/_/g, ' ').toUpperCase();
+                            sectionFields.push([labelTexto, val]);
+                        }
+                    });
+
+                    // Si la sección tiene campos llenos, agregamos una fila de título de sección y luego sus campos
+                    if(sectionFields.length > 0) {
+                        bodyContent.push([{ content: sectionTitle.toUpperCase(), colSpan: 2, styles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold', halign: 'left' } }]);
+                        sectionFields.forEach(field => {
+                            bodyContent.push(field);
+                        });
+                    }
+                });
+
+                if(!hasData) {
+                    mostrarToast("⚠️ No hay datos ingresados para generar el PDF.", "error");
+                    return;
+                }
+
+                // Generar tabla automática con autotable organizada por secciones
+                doc.autoTable({
+                    startY: 32,
+                    head: [['Criterio / Campo Clínico', 'Valor Registrado']],
+                    body: bodyContent,
+                    theme: 'grid',
+                    headStyles: { fillColor: [30, 74, 122], textColor: [255, 255, 255], fontSize: 9 },
+                    styles: { fontSize: 8, overflow: 'linebreak', cellPadding: 3 },
+                    columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 105 } }
+                });
+
+                // Nombre estricto: VG-Nombre paciente-Numero registro o historia clínica-fecha y hora de descarga
+                const ahora = new Date();
+                const yyyy = ahora.getFullYear();
+                const mm = String(ahora.getMonth() + 1).padStart(2, '0');
+                const dd = String(ahora.getDate()).padStart(2, '0');
+                const hh = String(ahora.getHours()).padStart(2, '0');
+                const min = String(ahora.getMinutes()).padStart(2, '0');
+                const fechaHoraStr = `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+
+                const nombreArchivoFinal = `VG-${nombrePaciente.replace(/\s+/g, '_')}-${numRegistro}-${fechaHoraStr}.pdf`;
+
+                doc.save(nombreArchivoFinal);
+                mostrarToast("📄 PDF generado y descargado con éxito.", "success");
+            } catch (e) {
+                console.error("Error al generar PDF:", e);
+                mostrarToast("❌ Error al generar el documento PDF.", "error");
+            }
+        }
+
+        function mostrarToast(mensaje, tipo = "success") {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = mensaje;
+            toast.className = 'toast-message';
+            if (tipo === "error") toast.classList.add('error');
+            toast.classList.add('show');
+
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        window.onload = function() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try { formData = JSON.parse(stored); } catch(e) { formData = {}; }
+            }
+            setupAutoSaveAndLoad();
+            actualizarHistorialLocal();
+
+            document.getElementById('select-archivo').addEventListener('change', function() {
+                if (this.value) cargarPacienteDesdeArchivo(this.value);
+            });
+            document.getElementById('btn-eliminar-seleccionado').addEventListener('click', function() {
+                const llave = document.getElementById('select-archivo').value;
+                if(llave) eliminarExpedienteLocal(llave);
+            });
+        };
+    </script>
+</body>
+</html>

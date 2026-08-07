@@ -1,0 +1,2063 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Valoración Integral - Escalas Clínicas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librerías jsPDF para exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        /* --- Paleta pastel y estilos modernos --- */
+        :root {
+            --bg-body: #eef6ff;
+            --bg-card: #ffffff;
+            --primary: #4f8cf7;
+            --primary-light: #dbeafe;
+            --success: #34d399;
+            --success-light: #d1fae5;
+            --warning: #fbbf24;
+            --warning-light: #fef3c7;
+            --danger: #f87171;
+            --danger-light: #fee2e2;
+            --gray: #f1f5f9;
+            --shadow: 0 8px 20px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.02);
+            --radius: 1rem;
+        }
+        body {
+            background-color: var(--bg-body);
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            padding: 1.5rem;
+            min-height: 100vh;
+        }
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .header-blue {
+            background: linear-gradient(135deg, #4f8cf7, #6ba3ff);
+            color: white;
+            padding: 1.5rem 2rem;
+        }
+        .header-blue h1 {
+            font-weight: 700;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .header-blue p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+            margin-top: 0.25rem;
+        }
+
+        /* Tarjetas de escala en el menú */
+        .scale-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1rem 0.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            cursor: pointer;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        .scale-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            border-color: var(--primary-light);
+        }
+        .scale-card .icon {
+            font-size: 2.2rem;
+            line-height: 1;
+        }
+        .scale-card .title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+        .scale-card .badge {
+            font-size: 0.7rem;
+            background: var(--gray);
+            color: #64748b;
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+        }
+        .scale-card.completed {
+            border-color: var(--success);
+            background: var(--success-light);
+        }
+        .scale-card.completed .badge {
+            background: var(--success);
+            color: white;
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Formulario de datos del paciente */
+        .patient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.75rem;
+            background: var(--gray);
+            padding: 1rem;
+            border-radius: 0.75rem;
+        }
+        .patient-grid .form-group label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .patient-grid .form-group input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            background: white;
+            transition: border 0.2s;
+        }
+        .patient-grid .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 140, 247, 0.15);
+        }
+
+        /* Panel de selección y carga de expedientes */
+        .history-box {
+            background: #f0fdfa;
+            border: 1px solid #ccfbf1;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px;
+        }
+        .selection-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        .selection-bar select {
+            flex: 2;
+            min-width: 200px;
+            padding: 10px;
+            border: 1px solid #0d9488;
+            border-radius: 8px;
+            font-size: 12px;
+            background: white;
+            color: #1e293b;
+        }
+        .selection-bar select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+        }
+        .btn-delete-selected {
+            background: #f87171;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn-delete-selected:hover:not(:disabled) {
+            background: #be123c;
+            transform: scale(1.02);
+        }
+        .btn-delete-selected:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Radio y checkbox estilizados */
+        .radio-label,
+        .checkbox-label {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.25rem;
+            cursor: pointer;
+            transition: background 0.15s, border 0.15s;
+            border: 2px solid transparent;
+            background: #fafbfc;
+        }
+        .radio-label:hover,
+        .checkbox-label:hover {
+            background: #f1f5f9;
+        }
+        input[type="radio"]:checked+.radio-label,
+        input[type="checkbox"]:checked+.checkbox-label {
+            background: var(--success-light);
+            border-color: var(--success);
+            font-weight: 600;
+        }
+        input[type="radio"],
+        input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        /* Panel de resultado */
+        .result-panel {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-radius: 0.75rem;
+            margin-top: 1rem;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+        .score-circle {
+            width: 64px;
+            height: 64px;
+            min-width: 64px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 800;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            margin-right: 1.25rem;
+        }
+        .result-info h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .result-info p {
+            margin: 0.2rem 0 0;
+            font-size: 0.9rem;
+        }
+
+        /* Botones */
+        .btn-back {
+            background: #e2e8f0;
+            color: #1e293b;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-back:hover {
+            background: #cbd5e1;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-primary:hover {
+            background: #3b7be0;
+            transform: scale(1.02);
+        }
+        .btn-success {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-success:hover {
+            background: #2bbd7e;
+        }
+        .btn-danger {
+            background: #f87171;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-danger:hover {
+            background: #ef4444;
+        }
+        .btn-save {
+            background: var(--success);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-save:hover {
+            background: #059669;
+        }
+
+        /* Misc */
+        .hidden-panel {
+            display: none !important;
+        }
+        .section-title {
+            color: #065f46;
+            border-bottom: 2px solid #a7f3d0;
+            padding-bottom: 0.4rem;
+            margin: 1.5rem 0 1rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .berman-item {
+            padding: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+        .berman-item label {
+            flex: 1;
+            cursor: pointer;
+        }
+        .berman-item input[type="checkbox"] {
+            position: static;
+            opacity: 1;
+            width: auto;
+            height: auto;
+            margin-right: 0.5rem;
+        }
+        .footer {
+            background: #eef2ff;
+            padding: 0.75rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .toast-message {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #0d9488;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .toast-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .toast-message.error {
+            background: #f87171;
+        }
+
+        /* Historial de expedientes */
+        .history-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .card-paciente {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .btn-mini {
+            padding: 5px 10px;
+            font-size: 10px;
+            border-radius: 4px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-mini-save {
+            background: var(--success);
+        }
+        .btn-mini-save:hover {
+            background: #059669;
+        }
+        .btn-mini-danger {
+            background: #f87171;
+        }
+        .btn-mini-danger:hover {
+            background: #ef4444;
+        }
+
+        @media (max-width: 640px) {
+            .menu-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+            .patient-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Estilo para el slider EVA dentro de la escala */
+        .eva-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 0;
+        }
+        .eva-slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #d1d5db;
+            appearance: none;
+        }
+        .eva-slider-container input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+        .eva-slider-container .eva-value {
+            font-weight: 700;
+            font-size: 1.2rem;
+            min-width: 2.5rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- CABECERA -->
+        <header class="header-blue">
+            <h1>
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                Valoración Integral por Escalas Clínicas
+            </h1>
+            <p>Seleccione una escala, complete la valoración y genere el PDF.</p>
+        </header>
+
+        <!-- SISTEMA DE SELECCIÓN Y CARGA LOCAL CON BOTÓN ELIMINAR -->
+        <div class="history-box">
+            <label style="color: #115e59; font-size: 11px; font-weight: 700; text-transform: uppercase;">📂 CARGAR O EDITAR REGISTROS GUARDADO LOCALMENTE:</label>
+            <div class="selection-bar">
+                <select id="select-archivo">
+                    <option value="">-- Seleccione un expediente para cargar --</option>
+                </select>
+                <button id="btn-eliminar-seleccionado" class="btn-delete-selected" disabled>
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+
+        <!-- DATOS DEL PACIENTE (ÚNICO) -->
+        <div id="patient-info" class="p-4 md:p-6 bg-white">
+            <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+                <h2 class="text-lg font-semibold text-gray-700">Datos del Paciente</h2>
+                <div class="flex gap-2">
+                    <button id="guardar-expediente-btn" class="btn-save text-sm py-2 px-4">💾 Guardar Datos</button>
+                </div>
+            </div>
+            <div class="patient-grid">
+                <div class="form-group"><label>Nombre</label><input type="text" id="paciente" placeholder="Nombre completo" /></div>
+                <div class="form-group"><label>Historia Clínica</label><input type="text" id="historia" placeholder="No. HC" /></div>
+                <div class="form-group"><label>Edad</label><input type="text" id="edad" placeholder="Edad" /></div>
+                <div class="form-group"><label>Fecha Evaluación</label><input type="date" id="fecha" /></div>
+                <div class="form-group"><label>Departamento</label><input type="text" id="departamento" placeholder="Departamento" /></div>
+                <div class="form-group"><label>Servicio</label><input type="text" id="servicio" placeholder="Servicio" /></div>
+            </div>
+        </div>
+
+        <!-- CONTENIDO PRINCIPAL -->
+        <main class="p-4 md:p-6 bg-[#f9fcff]">
+
+            <!-- MENÚ DE ESCALAS -->
+            <div id="menu-panel">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                    <h2 class="text-xl font-bold text-gray-800">Seleccione una escala</h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <button id="finalizar-btn" class="btn-success hidden">🖨️ Descargar PDF</button>
+                        <button id="reset-btn" class="btn-danger">🔄 Nueva Valoración</button>
+                    </div>
+                </div>
+                <div id="scale-menu" class="menu-grid"></div>
+            </div>
+
+            <!-- PANEL DE ESCALA ACTIVA -->
+            <div id="scale-panel" class="hidden-panel">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+                    <button id="back-to-menu" class="btn-back">← Volver al menú</button>
+                    <span id="scale-title" class="text-xl font-bold text-gray-800"></span>
+                </div>
+                <div id="scale-content"></div>
+            </div>
+
+            <!-- HISTORIAL DE EXPEDIENTES -->
+            <div class="section-title" style="margin-top: 30px;">🗂️ Historial de Expedientes Guardados</div>
+            <div class="history-list" id="contenedor-historial-cards"></div>
+
+        </main>
+
+        <footer class="footer">Complete al menos una escala para habilitar la generación de PDF. Los datos se guardan automáticamente.</footer>
+    </div>
+
+    <!-- Toast para notificaciones -->
+    <div id="toastMessage" class="toast-message"></div>
+
+    <script>
+        // =====================================================================
+        // 1. DEFINICIONES DE ESCALAS (DATOS)
+        // =====================================================================
+
+        const apgarData = [
+            { id: 'apariencia', nombre: 'Apariencia (Color)', valores: [{ score: 0, desc: 'Azul pálido' }, { score: 1,
+                    desc: 'Cuerpo rosado, extremidades azules' }, { score: 2, desc: 'Completamente rosado' }] },
+            { id: 'pulso', nombre: 'Pulso (Frecuencia Cardiaca)', valores: [{ score: 0, desc: 'Ausente' }, { score: 1,
+                    desc: 'Menos de 100 lpm' }, { score: 2, desc: 'Más de 100 lpm' }] },
+            { id: 'gestos', nombre: 'Gestos (Respuesta a Estímulos)', valores: [{ score: 0, desc: 'No responde' },
+                { score: 1, desc: 'Muecas o llanto débil' }, { score: 2,
+                    desc: 'Estornudos, tos, llanto vigoroso' }] },
+            { id: 'actividad', nombre: 'Actividad (Tono Muscular)', valores: [{ score: 0, desc: 'Flácido' }, { score: 1,
+                    desc: 'Flexión leve de extremidades' }, { score: 2, desc: 'Movimiento activo, buena flexión' }] },
+            { id: 'respiracion', nombre: 'Respiración (Esfuerzo Respiratorio)', valores: [{ score: 0, desc: 'Ausente' },
+                { score: 1, desc: 'Lenta, irregular, hipoventilación' }, { score: 2,
+                    desc: 'Llanto fuerte, respiración normal' }] }
+        ];
+
+        const capurroData = [
+            { id: 'forma_oreja', nombre: 'Forma de la Oreja', valores: [{ score: 0, desc: 'Plana, sin incurvación' },
+                { score: 8, desc: 'Parcial incurvación del borde' }, { score: 16,
+                    desc: 'Incurvación total (borde superior)' }, { score: 24,
+                    desc: 'Incurvación total y pabellón duro' }] },
+            { id: 'tamano_glandula', nombre: 'Tamaño de la Glándula Mamaria', valores: [{ score: 0, desc: 'Ausente' },
+                { score: 5, desc: 'Menos de 5 mm' }, { score: 10, desc: 'Entre 5 y 10 mm' }, { score: 15,
+                    desc: 'Más de 10 mm' }] },
+            { id: 'formacion_pezon', nombre: 'Formación del Pezón', valores: [{ score: 0, desc: 'Apenas visible' },
+                { score: 5, desc: 'Diámetro menor a 7.5 mm, borde no levantado' }, { score: 10,
+                    desc: 'Diámetro mayor a 7.5 mm, borde levantado' }, { score: 15,
+                    desc: 'Areola sobreelevada' }] },
+            { id: 'textura_piel', nombre: 'Textura de la Piel', valores: [{ score: 0, desc: 'Muy fina, gelatinosa' },
+                { score: 5, desc: 'Fina y lisa' }, { score: 10, desc: 'Más gruesa, descamación superficial' },
+                { score: 15, desc: 'Gruesa, grietas superficiales' }, { score: 20,
+                    desc: 'Gruesa, apergaminada, grietas profundas' }] },
+            { id: 'pliegues_plantares', nombre: 'Pliegues Plantares', valores: [{ score: 0, desc: 'Sin pliegues' },
+                { score: 5, desc: 'Marcas mal definidas' }, { score: 10, desc: 'Pliegues en mitad anterior' },
+                { score: 15, desc: 'Pliegues en más de la mitad anterior' }, { score: 20,
+                    desc: 'Pliegues en toda la planta' }] }
+        ];
+
+        const glasgowData = [
+            { id: 'ocular', nombre: 'Apertura Ocular (O)', valores: [{ score: 4, desc: 'Espontánea' }, { score: 3,
+                    desc: 'A la voz' }, { score: 2, desc: 'Al dolor' }, { score: 1, desc: 'Ausente' }] },
+            { id: 'verbal', nombre: 'Respuesta Verbal (V)', valores: [{ score: 5, desc: 'Orientado' }, { score: 4,
+                    desc: 'Confuso' }, { score: 3, desc: 'Inapropiada' }, { score: 2, desc: 'Incomprensible' },
+                { score: 1, desc: 'Ausente' }] },
+            { id: 'motora', nombre: 'Respuesta Motora (M)', valores: [{ score: 6, desc: 'Obedece órdenes' },
+                { score: 5, desc: 'Localiza el dolor' }, { score: 4, desc: 'Retirada al dolor' }, { score: 3,
+                    desc: 'Flexión anormal (Decorticación)' }, { score: 2,
+                    desc: 'Extensión anormal (Descerebración)' }, { score: 1, desc: 'Ausente' }] }
+        ];
+
+        const silvermanData = [
+            { id: 'aleteo_nasal', nombre: 'Aleteo Nasal', valores: [{ score: 0, desc: 'Ausente' }, { score: 1,
+                    desc: 'Mínimo' }, { score: 2, desc: 'Marcado' }] },
+            { id: 'quejido_espiratorio', nombre: 'Quejido Espiratorio', valores: [{ score: 0, desc: 'Ausente' },
+                { score: 1, desc: 'Audible solo con fonendoscopio' }, { score: 2,
+                    desc: 'Audible sin fonendoscopio' }] },
+            { id: 'retraccion_costal', nombre: 'Retracción Costal', valores: [{ score: 0, desc: 'Ausente' },
+                { score: 1, desc: 'Apenas visible' }, { score: 2, desc: 'Marcada' }] },
+            { id: 'disociacion_toracoabdominal', nombre: 'Disociación Tóraco-Abdominal', valores: [{ score: 0,
+                    desc: 'Sincronizada' }, { score: 1, desc: 'Retraso de la inspiración' }, { score: 2,
+                    desc: 'Disociación (balancín)' }] },
+            { id: 'tiraje_xifoideo', nombre: 'Tiraje Xifoideo', valores: [{ score: 0, desc: 'Ausente' }, { score: 1,
+                    desc: 'Mínimo' }, { score: 2, desc: 'Marcado' }] }
+        ];
+
+        const bermanData = [
+            { categoria: 'A. Antecedentes Maternos', id: 'madre_edad', nombre: 'Edad materna (<18 o >35 años)' },
+            { categoria: 'A. Antecedentes Maternos', id: 'patologia_cronica', nombre: 'Patología materna crónica (Diabetes, HTA, TBC, etc.)' },
+            { categoria: 'A. Antecedentes Maternos', id: 'control_ausente', nombre: 'Control prenatal insuficiente o ausente' },
+            { categoria: 'A. Antecedentes Maternos', id: 'infeccion_materna', nombre: 'Infección materna activa (ITS, Corioamnionitis, ITU)' },
+            { categoria: 'B. Factores de Parto', id: 'parto_prematuro', nombre: 'Parto pretérmino (menos de 37 semanas)' },
+            { categoria: 'B. Factores de Parto', id: 'parto_distocico', nombre: 'Parto distócico, instrumentalizado o prolongado' },
+            { categoria: 'B. Factores de Parto', id: 'liquido_tenido', nombre: 'Líquido amniótico meconial o sanguinolento' },
+            { categoria: 'C. Condición Neonatal', id: 'bajo_peso', nombre: 'Bajo Peso al Nacer (menos de 2500g)' },
+            { categoria: 'C. Condición Neonatal', id: 'apgar_bajo_5min', nombre: 'APGAR menor de 7 a los 5 minutos' },
+            { categoria: 'C. Condición Neonatal', id: 'dificultad_resp', nombre: 'Dificultad respiratoria al nacer (Silverman > 3)' },
+            { categoria: 'C. Condición Neonatal', id: 'hipotermia', nombre: 'Hipotermia (temperatura central < 36.5°C)' }
+        ];
+
+        const bradenData = [
+            { id: 'sensorial', nombre: 'Percepción Sensorial', valores: [{ score: 1, desc: 'Completamente limitada' },
+                { score: 2, desc: 'Muy limitada' }, { score: 3, desc: 'Ligeramente limitada' }, { score: 4,
+                    desc: 'No limitada' }] },
+            { id: 'humedad', nombre: 'Humedad', valores: [{ score: 1, desc: 'Constantemente húmeda' }, { score: 2,
+                    desc: 'Muy húmeda' }, { score: 3, desc: 'Ocasionalmente húmeda' }, { score: 4,
+                    desc: 'Raramente húmeda' }] },
+            { id: 'actividad', nombre: 'Actividad', valores: [{ score: 1, desc: 'Encamado' }, { score: 2,
+                    desc: 'En silla' }, { score: 3, desc: 'Deambula ocasionalmente' }, { score: 4,
+                    desc: 'Deambula frecuentemente' }] },
+            { id: 'movilidad', nombre: 'Movilidad', valores: [{ score: 1, desc: 'Completamente inmóvil' }, { score: 2,
+                    desc: 'Muy limitada' }, { score: 3, desc: 'Ligeramente limitada' }, { score: 4,
+                    desc: 'Sin limitaciones' }] },
+            { id: 'nutricion', nombre: 'Nutrición', valores: [{ score: 1, desc: 'Muy pobre' }, { score: 2,
+                    desc: 'Probablemente inadecuada' }, { score: 3, desc: 'Adecuada' }, { score: 4,
+                    desc: 'Excelente' }] },
+            { id: 'friccion', nombre: 'Fricción y Cisallamiento', valores: [{ score: 1, desc: 'Problema' },
+                { score: 2, desc: 'Problema potencial' }, { score: 3, desc: 'Sin problema aparente' }] }
+        ];
+
+        const nortonData = [
+            { id: 'fisico', nombre: 'Condición Física', valores: [{ score: 1, desc: 'Mala' }, { score: 2,
+                    desc: 'Regular' }, { score: 3, desc: 'Aceptable' }, { score: 4, desc: 'Buena' }] },
+            { id: 'conciencia', nombre: 'Estado Mental (Conciencia)', valores: [{ score: 1, desc: 'Estuporoso' },
+                { score: 2, desc: 'Confuso' }, { score: 3, desc: 'Apático' }, { score: 4, desc: 'Alerta' }] },
+            { id: 'actividad_n', nombre: 'Actividad', valores: [{ score: 1, desc: 'Encamado' }, { score: 2,
+                    desc: 'Sentado' }, { score: 3, desc: 'Camina con ayuda' }, { score: 4, desc: 'Deambula' }] },
+            { id: 'movilidad_n', nombre: 'Movilidad', valores: [{ score: 1, desc: 'Inmóvil' }, { score: 2,
+                    desc: 'Muy limitada' }, { score: 3, desc: 'Disminuida' }, { score: 4, desc: 'Completa' }] },
+            { id: 'incontinencia_n', nombre: 'Incontinencia', valores: [{ score: 1, desc: 'Doble (Fecal y Urinaria)' },
+                { score: 2, desc: 'Urinaria o fecal' }, { score: 3, desc: 'Ocasional' }, { score: 4, desc: 'No' }] }
+        ];
+
+        const crichtonData = [
+            { id: 'movilidad_c', nombre: 'Movilidad', valores: [{ score: 0, desc: 'Normal' }, { score: 1,
+                    desc: 'Ayuda verbal' }, { score: 2, desc: 'Ayuda física' }, { score: 3, desc: 'Dependiente' }] },
+            { id: 'orientacion_c', nombre: 'Orientación / Estado Mental', valores: [{ score: 0, desc: 'Orientado' },
+                { score: 1, desc: 'Confusión ocasional' }, { score: 2, desc: 'Desorientado' }, { score: 3,
+                    desc: 'Confusión severa' }] },
+            { id: 'antecedentes_c', nombre: 'Antecedentes de Caídas', valores: [{ score: 0, desc: 'No' }, { score: 1,
+                    desc: 'Una caída en 3 meses' }, { score: 2, desc: 'Caídas recurrentes' }] },
+            { id: 'vision_c', nombre: 'Visión / Déficits Sensoriales', valores: [{ score: 0, desc: 'Normal' },
+                { score: 1, desc: 'Déficit leve' }, { score: 2, desc: 'Déficit severo/ceguera' }] },
+            { id: 'medicacion_c', nombre: 'Medicación (sedantes, hipotensores)', valores: [{ score: 0,
+                    desc: 'Ninguna' }, { score: 1, desc: 'Un fármaco' }, { score: 2, desc: 'Múltiples' }] }
+        ];
+
+        const rassOptions = [
+            { score: '+4', label: 'Combativo, ansioso, violento' },
+            { score: '+3', label: 'Muy agitado' },
+            { score: '+2', label: 'Agitado' },
+            { score: '+1', label: 'Ansioso' },
+            { score: '0', label: 'Alerta y tranquilo' },
+            { score: '-1', label: 'Adormitado' },
+            { score: '-2', label: 'Sedación ligera' },
+            { score: '-3', label: 'Sedación moderada' },
+            { score: '-4', label: 'Sedación profunda' },
+            { score: '-5', label: 'Sedación muy profunda' }
+        ];
+
+        const maddoxOptions = [
+            { score: 0, label: 'Sin dolor, eritema, hinchazón ni cordón palpable.' },
+            { score: 1, label: 'Dolor, sin eritema hinchazón, ni cordón palpable.' },
+            { score: 2, label: 'Dolor con eritema y/o hinchazón sin cordón palpable.' },
+            { score: 3, label: 'Dolor, eritema, hinchazón, endurecimiento o cordón venoso palpable < 6 cm por encima del sitio.' },
+            { score: 4, label: 'Dolor, eritema, hinchazón, endurecimiento con cordón venoso palpable > 6 cm y/o purulencia.' },
+            { score: 5, label: 'Trombosis venosa franca con todos los signos anteriores y dificultad o detención de la perfusión.' }
+        ];
+
+        const barthelData = [
+            { id: 'comer', nombre: 'Comer', valores: [{ score: 0, desc: 'Incapaz' }, { score: 5,
+                    desc: 'Necesita ayuda' }, { score: 10, desc: 'Independiente' }] },
+            { id: 'lavarse', nombre: 'Lavarse (Aseo personal)', valores: [{ score: 0, desc: 'Incapaz' }, { score: 5,
+                    desc: 'Independiente' }] },
+            { id: 'vestirse', nombre: 'Vestirse', valores: [{ score: 0, desc: 'Dependiente' }, { score: 5,
+                    desc: 'Necesita ayuda' }, { score: 10, desc: 'Independiente' }] },
+            { id: 'arreglarse', nombre: 'Arreglarse', valores: [{ score: 0, desc: 'Necesita ayuda' }, { score: 5,
+                    desc: 'Independiente' }] },
+            { id: 'deposiciones', nombre: 'Deposiciones (Control)', valores: [{ score: 0, desc: 'Incontinente' },
+                { score: 5, desc: 'Accidente ocasional' }, { score: 10, desc: 'Continente' }] },
+            { id: 'miccion', nombre: 'Micción (Control)', valores: [{ score: 0, desc: 'Incontinente' }, { score: 5,
+                    desc: 'Accidente ocasional' }, { score: 10, desc: 'Continente' }] },
+            { id: 'uso_wc', nombre: 'Uso del Retrete', valores: [{ score: 0, desc: 'Dependiente' }, { score: 5,
+                    desc: 'Necesita ayuda' }, { score: 10, desc: 'Independiente' }] },
+            { id: 'trasladarse', nombre: 'Trasladarse (Silla/Cama)', valores: [{ score: 0, desc: 'Incapaz' },
+                { score: 5, desc: 'Gran ayuda (2 personas)' }, { score: 10, desc: 'Ayuda mínima (1 persona)' },
+                { score: 15, desc: 'Independiente' }] },
+            { id: 'deambular', nombre: 'Deambular (Caminar)', valores: [{ score: 0, desc: 'Incapaz' }, { score: 5,
+                    desc: 'Silla de ruedas (indep.)' }, { score: 10, desc: 'Necesita ayuda (1 persona)' },
+                { score: 15, desc: 'Independiente' }] },
+            { id: 'escaleras', nombre: 'Escaleras', valores: [{ score: 0, desc: 'Incapaz' }, { score: 5,
+                    desc: 'Necesita ayuda' }, { score: 10, desc: 'Independiente' }] }
+        ];
+
+        // =====================================================================
+        // 2. METADATOS DE ESCALAS
+        // =====================================================================
+        const scalesMeta = [
+            { id: 'apgar-1', label: 'Apgar 1\'', icon: '👶' },
+            { id: 'apgar-5', label: 'Apgar 5\'', icon: '👶' },
+            { id: 'capurro', label: 'Capurro', icon: '📏' },
+            { id: 'glasgow', label: 'Glasgow', icon: '🧠' },
+            { id: 'silverman', label: 'Silverman', icon: '🫁' },
+            { id: 'berman', label: 'Berman', icon: '🩺' },
+            { id: 'braden', label: 'Braden', icon: '🛏️' },
+            { id: 'norton', label: 'Norton', icon: '🛌' },
+            { id: 'crichton', label: 'Crichton', icon: '🚶' },
+            { id: 'rass', label: 'RASS', icon: '😴' },
+            { id: 'maddox', label: 'Maddox', icon: '💉' },
+            { id: 'eva', label: 'EVA', icon: '😣' },
+            { id: 'barthel', label: 'Barthel', icon: '🦽' }
+        ];
+
+        // =====================================================================
+        // 3. CONSTANTES Y ESTADO GLOBAL
+        // =====================================================================
+
+        const STORAGE_KEY = 'valoracion_escalas_data_v2';
+        const STORAGE_KEY_EXPEDIENTES = 'valoracion_escalas_expedientes';
+
+        let state = {
+            paciente: {
+                nombre: '',
+                historia: '',
+                edad: '',
+                fecha: '',
+                departamento: '',
+                servicio: ''
+            },
+            scaleValues: {},
+            completed: {}
+        };
+
+        let llaveActivaOriginal = null;
+
+        // =====================================================================
+        // 4. FUNCIONES DE PERSISTENCIA
+        // =====================================================================
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (!parsed.paciente) parsed.paciente = {};
+                    if (!parsed.scaleValues) parsed.scaleValues = {};
+                    if (!parsed.completed) parsed.completed = {};
+                    return parsed;
+                }
+            } catch (_) { /* ignorar */ }
+            return {
+                paciente: { nombre: '', historia: '', edad: '', fecha: '', departamento: '', servicio: '' },
+                scaleValues: {},
+                completed: {}
+            };
+        }
+
+        function saveState() {
+            state.completed = {};
+            Object.keys(state.scaleValues).forEach(scaleId => {
+                const values = state.scaleValues[scaleId];
+                let hasValue = false;
+                if (typeof values === 'object') {
+                    for (let key in values) {
+                        if (values[key] !== undefined && values[key] !== null && values[key] !== '') {
+                            hasValue = true;
+                            break;
+                        }
+                    }
+                }
+                if (scaleId === 'eva' && values && values.eva && parseInt(values.eva) > 0) {
+                    hasValue = true;
+                }
+                state.completed[scaleId] = hasValue;
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            renderMenu();
+        }
+
+        function saveScaleValue(scaleId, key, value) {
+            if (!state.scaleValues[scaleId]) state.scaleValues[scaleId] = {};
+            state.scaleValues[scaleId][key] = value;
+            saveState();
+        }
+
+        function getScaleValue(scaleId, key) {
+            if (state.scaleValues[scaleId] && state.scaleValues[scaleId][key] !== undefined) {
+                return state.scaleValues[scaleId][key];
+            }
+            return null;
+        }
+
+        // =====================================================================
+        // 5. FUNCIONES DE GUARDADO Y CARGA DE EXPEDIENTES
+        // =====================================================================
+
+        function guardarExpediente() {
+            const hcBase = document.getElementById('historia').value.trim();
+            const nombre = document.getElementById('paciente').value.trim();
+
+            if (!hcBase) {
+                mostrarToast("⚠️ El número de Historia Clínica es obligatorio", "error");
+                document.getElementById('historia').focus();
+                return;
+            }
+            if (!nombre) {
+                mostrarToast("⚠️ El nombre del paciente es obligatorio", "error");
+                document.getElementById('paciente').focus();
+                return;
+            }
+
+            state.paciente.nombre = document.getElementById('paciente').value;
+            state.paciente.historia = document.getElementById('historia').value;
+            state.paciente.edad = document.getElementById('edad').value;
+            state.paciente.fecha = document.getElementById('fecha').value;
+            state.paciente.departamento = document.getElementById('departamento').value;
+            state.paciente.servicio = document.getElementById('servicio').value;
+
+            saveState();
+
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY_EXPEDIENTES);
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            let llaveDestino = hcBase;
+            let maxVersion = 0;
+            Object.keys(expedientes).forEach(key => {
+                if (key === hcBase) {
+                    maxVersion = Math.max(maxVersion, 0);
+                } else if (key.startsWith(hcBase + '_V')) {
+                    const num = parseInt(key.split('_V')[1]);
+                    if (!isNaN(num)) {
+                        maxVersion = Math.max(maxVersion, num);
+                    }
+                }
+            });
+            if (maxVersion > 0 || expedientes[hcBase]) {
+                llaveDestino = `${hcBase}_V${maxVersion + 1}`;
+            }
+
+            const pacienteData = {
+                nombre: nombre,
+                hc: hcBase,
+                llaveRegistro: llaveDestino,
+                paciente: JSON.parse(JSON.stringify(state.paciente)),
+                scaleValues: JSON.parse(JSON.stringify(state.scaleValues)),
+                completed: JSON.parse(JSON.stringify(state.completed)),
+                fechaGuardado: new Date().toISOString()
+            };
+
+            expedientes[llaveDestino] = pacienteData;
+
+            try {
+                localStorage.setItem(STORAGE_KEY_EXPEDIENTES, JSON.stringify(expedientes));
+                mostrarToast(`✅ ¡Guardado exitoso! Registro: ${llaveDestino}`, "success");
+                llaveActivaOriginal = llaveDestino;
+                actualizarHistorialLocal();
+                document.getElementById('select-archivo').value = llaveDestino;
+                document.getElementById('btn-eliminar-seleccionado').disabled = false;
+            } catch (e) {
+                console.error("Error al guardar:", e);
+                mostrarToast("❌ Error al guardar. Intente nuevamente.", "error");
+            }
+        }
+
+        function cargarExpedienteDesdeArchivo(llave) {
+            if (!llave) {
+                mostrarToast("⚠️ No se ha seleccionado ningún expediente.", "error");
+                return;
+            }
+
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY_EXPEDIENTES);
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                mostrarToast("❌ Error al leer los datos guardados.", "error");
+                return;
+            }
+
+            const p = expedientes[llave];
+            if (!p) {
+                mostrarToast(`⚠️ No se encontró el expediente: ${llave}`, "error");
+                return;
+            }
+
+            llaveActivaOriginal = llave;
+
+            if (p.paciente) {
+                document.getElementById('paciente').value = p.paciente.nombre || '';
+                document.getElementById('historia').value = p.paciente.historia || '';
+                document.getElementById('edad').value = p.paciente.edad || '';
+                document.getElementById('fecha').value = p.paciente.fecha || '';
+                document.getElementById('departamento').value = p.paciente.departamento || '';
+                document.getElementById('servicio').value = p.paciente.servicio || '';
+            }
+
+            state.scaleValues = JSON.parse(JSON.stringify(p.scaleValues || {}));
+            state.completed = JSON.parse(JSON.stringify(p.completed || {}));
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            renderMenu();
+
+            if (!document.getElementById('scale-panel').classList.contains('hidden-panel')) {
+                const scaleId = document.getElementById('scale-title').dataset.scaleId;
+                if (scaleId) {
+                    const meta = scalesMeta.find(m => m.id === scaleId);
+                    if (meta) {
+                        const container = document.getElementById('scale-content');
+                        container.innerHTML = buildScaleContent(scaleId);
+                        rebuildScaleForm(scaleId);
+                    }
+                }
+            }
+
+            document.getElementById('select-archivo').value = llave;
+            document.getElementById('btn-eliminar-seleccionado').disabled = false;
+            mostrarToast(`✅ Cargado: ${p.nombre} (${llave})`, "success");
+        }
+
+        function eliminarExpedienteLocal(llave) {
+            if (!confirm(`¿Está seguro de que desea borrar el expediente "${llave}" del almacenamiento local?`)) return;
+
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY_EXPEDIENTES);
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            if (!expedientes[llave]) {
+                mostrarToast(`⚠️ El expediente ${llave} no existe.`, "error");
+                return;
+            }
+
+            const nombreEliminado = expedientes[llave].nombre;
+            delete expedientes[llave];
+            localStorage.setItem(STORAGE_KEY_EXPEDIENTES, JSON.stringify(expedientes));
+
+            if (llaveActivaOriginal === llave) {
+                limpiarFormularioCompleto();
+            } else {
+                actualizarHistorialLocal();
+            }
+
+            mostrarToast(`🗑️ Expediente "${llave}" (${nombreEliminado}) eliminado.`, "success");
+        }
+
+        function limpiarFormularioCompleto() {
+            document.getElementById('paciente').value = '';
+            document.getElementById('historia').value = '';
+            document.getElementById('edad').value = '';
+            document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
+            document.getElementById('departamento').value = '';
+            document.getElementById('servicio').value = '';
+
+            state.paciente = { nombre: '', historia: '', edad: '', fecha: '', departamento: '', servicio: '' };
+            state.scaleValues = {};
+            state.completed = {};
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+            document.getElementById('select-archivo').value = '';
+            document.getElementById('btn-eliminar-seleccionado').disabled = true;
+            llaveActivaOriginal = null;
+
+            renderMenu();
+            actualizarHistorialLocal();
+            mostrarToast("🧹 Formulario limpiado correctamente.", "success");
+        }
+
+        function actualizarHistorialLocal() {
+            let expedientes = {};
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY_EXPEDIENTES);
+                expedientes = stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                expedientes = {};
+            }
+
+            const select = document.getElementById('select-archivo');
+            const contenedor = document.getElementById('contenedor-historial-cards');
+            const btnEliminar = document.getElementById('btn-eliminar-seleccionado');
+
+            select.innerHTML = '<option value="">-- Seleccione un registro guardado --</option>';
+            contenedor.innerHTML = '';
+
+            const keys = Object.keys(expedientes);
+            if (keys.length === 0) {
+                btnEliminar.disabled = true;
+                return;
+            }
+            btnEliminar.disabled = false;
+
+            keys.forEach(key => {
+                const p = expedientes[key];
+                const identificadorVisual = p.llaveRegistro || p.hc;
+
+                let opt = document.createElement('option');
+                opt.value = identificadorVisual;
+                opt.textContent = `${identificadorVisual} - ${p.nombre}`;
+                select.appendChild(opt);
+
+                let card = document.createElement('div');
+                card.className = 'card-paciente';
+                card.innerHTML = `
+                    <h4 style="margin:0 0 4px 0;">${p.nombre}</h4>
+                    <p style="margin:2px 0;"><strong>Registro:</strong> <span style="color:var(--primary); font-weight:bold;">${identificadorVisual}</span></p>
+                    <p style="margin:2px 0; font-size:9px; color:#94a3b8;">Guardado: ${p.fechaGuardado ? new Date(p.fechaGuardado).toLocaleString() : 'N/A'}</p>
+                    <div class="card-actions">
+                        <button class="btn-mini btn-mini-save" onclick="cargarExpedienteDesdeArchivo('${identificadorVisual}')">✏️ Cargar</button>
+                        <button class="btn-mini btn-mini-danger" onclick="eliminarExpedienteLocal('${identificadorVisual}')">🗑️ Eliminar</button>
+                    </div>
+                `;
+                contenedor.appendChild(card);
+            });
+
+            if (llaveActivaOriginal && expedientes[llaveActivaOriginal]) {
+                select.value = llaveActivaOriginal;
+                btnEliminar.disabled = false;
+            }
+        }
+
+        // =====================================================================
+        // 6. FUNCIONES DE GENERACIÓN DE FORMULARIOS
+        // =====================================================================
+
+        function buildScaleContent(scaleId) {
+            let html = '';
+            const formContainerId = `${scaleId}-form`;
+            const resultContainerId = `${scaleId}-result`;
+
+            switch (scaleId) {
+                case 'apgar-1':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Test de Apgar - 1 minuto</h3>
+                    <p class="text-gray-600 text-sm mb-4">Evalúa la adaptación inmediata del recién nacido a la vida extrauterina al primer minuto del parto (frecuencia cardíaca, respiración, tono muscular, reflejos y coloración).</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'apgar-5':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Test de Apgar - 5 minutos</h3>
+                    <p class="text-gray-600 text-sm mb-4">Evalúa la evolución clínica y la respuesta a la estabilización o reanimación neonatal a los cinco minutos de nacer.</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'capurro':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Test de Capurro (Edad Gestacional)</h3>
+                    <p class="text-gray-600 text-sm mb-4">Estima la edad gestacional del recién nacido analizando características físicas somáticas (oreja, glándula mamaria, pezón, piel y pliegues plantares) y/o neurológicas.</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'glasgow':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Coma de Glasgow</h3>
+                    <p class="text-gray-600 text-sm mb-4">Mide el nivel de conciencia y la severidad del deterioro neurológico mediante tres parámetros: respuesta ocular, verbal y motora.</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'silverman':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Silverman-Andersen</h3>
+                   <p class="text-gray-600 text-sm mb-4">Evalúa la gravedad de la dificultad respiratoria en el recién nacido (a mayor puntuación, mayor distrés respiratorio).</p>                            
+                   <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'berman':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Índice de Riesgo Neonatal (Berman)</h3>
+                    <p class="text-gray-600 text-sm mb-4">Valora el grado de obstrucción de la vía aérea en crisis asmáticas o bronquiolitis pediátricas según la frecuencia respiratoria, sibilancias y uso de musculatura accesoria.</p>                            
+                    <p class="text-sm text-gray-600 mb-4">Seleccione los factores de riesgo presentes. Un punto por cada factor. Máximo 11.</p>
+                            <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'braden':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Braden (Riesgo de Úlceras por Presión)</h3>
+                    <p class="text-gray-600 text-sm mb-4">Identifica el riesgo de desarrollar úlceras por presión (UPP) evaluando percepción sensorial, exposición a la humedad, actividad física, movilidad, nutrición y fricción.</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'norton':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Norton (Riesgo de Úlceras)</h3>
+                    <p class="text-gray-600 text-sm mb-4">Determina el riesgo de úlceras por presión considerando el estado físico general, estado mental, actividad, movilidad e incontinencia.</p>                            
+                    <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'crichton':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Crichton (Riesgo de Caídas)</h3>
+                   <p class="text-gray-600 text-sm mb-4">Valora el riesgo de caídas en pacientes hospitalizados analizando variables como edad, estado mental, movilidad, medicación y antecedentes de caídas.</p>                            
+                   <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'rass':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala RASS (Agitación y Sedación)</h3>
+                <p class="text-gray-600 text-sm mb-4">Mide el nivel de agitación o la profundidad de la sedación en pacientes hospitalizados o en cuidados intensivos.</p>                            
+                <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'maddox':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala de Maddox (Riesgo de Flebitis)</h3>
+                 <p class="text-gray-600 text-sm mb-4">Evalúa la presencia y severidad de la flebitis (inflamación venosa) en accesos venosos periféricos para guiar el retiro o mantenimiento del catéter.</p>                           
+                 <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'eva':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Escala EVA (Dolor No Verbal)</h3>
+                   <p class="text-gray-600 text-sm mb-4">Estima la intensidad del dolor mediante la observación de signos conductuales (muecas, rigidez, quejidos) en pacientes que no pueden comunicarse.</p>                            
+                   <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                case 'barthel':
+                    html = `<h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Índice de Barthel (Dependencia en ABVD)</h3>
+                  <p class="text-gray-600 text-sm mb-4">Evalúa el nivel de autonomía física midiendo el grado de dependencia para realizar 10 actividades básicas de la vida diaria (comer, vestirse, lavarse, deambular, etc.).</p>                            
+                  <div id="${formContainerId}"></div>
+                            <div id="${resultContainerId}"></div>`;
+                    break;
+                default:
+                    html = `<p class="text-gray-500">Escala no disponible.</p>`;
+            }
+            return html;
+        }
+
+        function rebuildScaleForm(scaleId) {
+            switch (scaleId) {
+                case 'apgar-1':
+                    generateRadioForm('apgar-1-form', apgarData, 'apgar-1', 'updateApgar1');
+                    break;
+                case 'apgar-5':
+                    generateRadioForm('apgar-5-form', apgarData, 'apgar-5', 'updateApgar5');
+                    break;
+                case 'capurro':
+                    generateRadioForm('capurro-form', capurroData, 'capurro', 'updateCapurro');
+                    break;
+                case 'glasgow':
+                    generateRadioForm('glasgow-form', glasgowData, 'glasgow', 'updateGlasgow');
+                    break;
+                case 'silverman':
+                    generateRadioForm('silverman-form', silvermanData, 'silverman', 'updateSilverman');
+                    break;
+                case 'berman':
+                    generateBermanForm();
+                    break;
+                case 'braden':
+                    generateRadioForm('braden-form', bradenData, 'braden', 'updateBraden');
+                    break;
+                case 'norton':
+                    generateRadioForm('norton-form', nortonData, 'norton', 'updateNorton');
+                    break;
+                case 'crichton':
+                    generateCrichtonForm();
+                    break;
+                case 'rass':
+                    generateRASSForm();
+                    break;
+                case 'maddox':
+                    generateMaddoxForm();
+                    break;
+                case 'eva':
+                    generateEVAForm();
+                    break;
+                case 'barthel':
+                    generateRadioForm('barthel-form', barthelData, 'barthel', 'updateBarthel');
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function generateRadioForm(containerId, scaleData, scalePrefix, updateFunc) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '';
+            scaleData.forEach(criterio => {
+                let html = `<div class="p-3 border rounded-lg bg-white shadow-sm mb-3">
+                                <p class="font-semibold text-gray-800 mb-2">${criterio.nombre}:</p>`;
+                criterio.valores.forEach(val => {
+                    const inputId = `${scalePrefix}-${criterio.id}-${val.score}`;
+                    const savedValue = getScaleValue(scalePrefix, criterio.id);
+                    const checked = (savedValue !== null && savedValue == val.score) ? 'checked' : '';
+                    html += `<div class="relative">
+                                <input type="radio" id="${inputId}" name="${scalePrefix}-${criterio.id}" value="${val.score}" 
+                                    onchange="onRadioChange('${scalePrefix}', '${criterio.id}', this.value, '${updateFunc}')" ${checked}>
+                                <label for="${inputId}" class="radio-label text-gray-700">
+                                    <span class="flex-1">${val.desc}</span>
+                                    <span class="font-bold text-emerald-600">${val.score} pts</span>
+                                </label>
+                            </div>`;
+                });
+                html += `</div>`;
+                container.innerHTML += html;
+            });
+            if (updateFunc) {
+                setTimeout(() => window[updateFunc](), 100);
+            }
+        }
+
+        function onRadioChange(scalePrefix, key, value, updateFunc) {
+            saveScaleValue(scalePrefix, key, parseInt(value));
+            if (updateFunc) {
+                window[updateFunc]();
+            }
+        }
+
+        function generateBermanForm() {
+            const container = document.getElementById('berman-form');
+            if (!container) return;
+            container.innerHTML = '';
+            let currentCategory = '';
+            bermanData.forEach(criterio => {
+                if (criterio.categoria !== currentCategory) {
+                    currentCategory = criterio.categoria;
+                    container.innerHTML += `<h3 class="section-title text-indigo-600 mt-4">${currentCategory}</h3>`;
+                }
+                const inputId = `berman-${criterio.id}`;
+                const savedValue = getScaleValue('berman', criterio.id);
+                const checked = savedValue === 1 ? 'checked' : '';
+                container.innerHTML += `
+                    <div class="berman-item">
+                        <label for="${inputId}" class="text-gray-700">${criterio.nombre}</label>
+                        <div>
+                            <input type="checkbox" id="${inputId}" name="berman-factor" value="1" 
+                                onchange="onBermanChange('${criterio.id}', this.checked)" ${checked}>
+                            <span class="text-sm text-gray-500">(1 pt)</span>
+                        </div>
+                    </div>
+                `;
+            });
+            setTimeout(() => updateBermanScore(), 100);
+        }
+
+        function onBermanChange(key, checked) {
+            saveScaleValue('berman', key, checked ? 1 : 0);
+            updateBermanScore();
+        }
+
+        function generateCrichtonForm() {
+            const container = document.getElementById('crichton-form');
+            if (!container) return;
+            container.innerHTML = '';
+            const items = [
+                { id: 'movilidad_c', label: 'Movilidad', options: [{ value: 0, text: '0 - Normal' }, { value: 1,
+                        text: '1 - Ayuda verbal' }, { value: 2, text: '2 - Ayuda física' }, { value: 3,
+                        text: '3 - Dependiente' }] },
+                { id: 'orientacion_c', label: 'Orientación / Estado Mental', options: [{ value: 0,
+                        text: '0 - Orientado' }, { value: 1, text: '1 - Confusión ocasional' }, { value: 2,
+                        text: '2 - Desorientado' }, { value: 3, text: '3 - Confusión severa' }] },
+                { id: 'antecedentes_c', label: 'Antecedentes de Caídas', options: [{ value: 0, text: '0 - No' },
+                    { value: 1, text: '1 - Una caída en 3 meses' }, { value: 2,
+                        text: '2 - Caídas recurrentes' }] },
+                { id: 'vision_c', label: 'Visión / Déficits Sensoriales', options: [{ value: 0, text: '0 - Normal' },
+                    { value: 1, text: '1 - Déficit leve' }, { value: 2,
+                        text: '2 - Déficit severo/ceguera' }] },
+                { id: 'medicacion_c', label: 'Medicación (sedantes, hipotensores)', options: [{ value: 0,
+                        text: '0 - Ninguna' }, { value: 1, text: '1 - Un fármaco' }, { value: 2,
+                        text: '2 - Múltiples' }] }
+            ];
+            items.forEach(item => {
+                let html = `<div class="p-3 border rounded-lg bg-white shadow-sm mb-3">
+                                <p class="font-semibold text-gray-800 mb-2">${item.label}:</p>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">`;
+                item.options.forEach(opt => {
+                    const inputId = `crichton-${item.id}-${opt.value}`;
+                    const savedValue = getScaleValue('crichton', item.id);
+                    const checked = (savedValue !== null && savedValue == opt.value) ? 'checked' : '';
+                    html += `<div class="relative">
+                                <input type="radio" id="${inputId}" name="crichton-${item.id}" value="${opt.value}" 
+                                    onchange="onRadioChange('crichton', '${item.id}', this.value, 'updateCrichtonScore')" ${checked}>
+                                <label for="${inputId}" class="radio-label text-gray-700 text-sm">
+                                    ${opt.text}
+                                </label>
+                            </div>`;
+                });
+                html += `</div></div>`;
+                container.innerHTML += html;
+            });
+            setTimeout(() => updateCrichtonScore(), 100);
+        }
+
+        function generateRASSForm() {
+            const container = document.getElementById('rass-form');
+            if (!container) return;
+            container.innerHTML = '';
+            rassOptions.forEach(opt => {
+                const inputId = `rass-${opt.score}`;
+                const savedValue = getScaleValue('rass', 'rass');
+                const checked = (savedValue !== null && savedValue == opt.score) ? 'checked' : '';
+                container.innerHTML += `
+                    <div class="relative">
+                        <input type="radio" id="${inputId}" name="rass_score" value="${opt.score}" 
+                            onchange="onRASSChange('${opt.score}')" ${checked}>
+                        <label for="${inputId}" class="radio-label text-gray-700">
+                            <span class="flex-1"><span class="font-bold">${opt.score}</span> - ${opt.label}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            setTimeout(() => updateRASS(), 100);
+        }
+
+        function onRASSChange(value) {
+            saveScaleValue('rass', 'rass', value);
+            updateRASS();
+        }
+
+        function generateMaddoxForm() {
+            const container = document.getElementById('maddox-form');
+            if (!container) return;
+            container.innerHTML = '';
+            maddoxOptions.forEach(opt => {
+                const inputId = `maddox-${opt.score}`;
+                const savedValue = getScaleValue('maddox', 'maddox');
+                const checked = (savedValue !== null && savedValue == opt.score) ? 'checked' : '';
+                container.innerHTML += `
+                    <div class="relative">
+                        <input type="radio" id="${inputId}" name="maddox_score" value="${opt.score}" 
+                            onchange="onMaddoxChange('${opt.score}')" ${checked}>
+                        <label for="${inputId}" class="radio-label text-gray-700">
+                            <span class="flex-1">${opt.label}</span>
+                            <span class="font-bold text-emerald-600">${opt.score}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            setTimeout(() => updateMaddox(), 100);
+        }
+
+        function onMaddoxChange(value) {
+            saveScaleValue('maddox', 'maddox', parseInt(value));
+            updateMaddox();
+        }
+
+        function generateEVAForm() {
+            const container = document.getElementById('eva-form');
+            if (!container) return;
+            const savedValue = getScaleValue('eva', 'eva');
+            const initialValue = savedValue !== null ? savedValue : 0;
+            container.innerHTML = `
+                <div class="p-4 border rounded-lg bg-white shadow-sm">
+                    <p class="font-semibold text-gray-800 mb-2">Seleccione la intensidad del dolor (0 = ausente, 10 = máximo):😕🙁😟😣😖</p>
+                    <div class="eva-slider-container">
+                        <span class="font-bold">0</span>
+                        <input type="range" min="0" max="10" value="${initialValue}" step="1" id="eva-slider" oninput="onEVAChange(this.value)">
+                        <span class="font-bold">10</span>
+                        <span id="eva-display" class="eva-value">${initialValue}</span>
+                    </div>
+                </div>
+            `;
+            setTimeout(() => updateEVA(), 100);
+        }
+
+        function onEVAChange(value) {
+            document.getElementById('eva-display').textContent = value;
+            saveScaleValue('eva', 'eva', parseInt(value));
+            updateEVA();
+        }
+
+        // =====================================================================
+        // 7. FUNCIONES DE CÁLCULO Y ACTUALIZACIÓN
+        // =====================================================================
+
+        function getScaleScore(scalePrefix) {
+            let total = 0;
+            document.querySelectorAll(`input[name^="${scalePrefix}-"]:checked`).forEach(input => {
+                total += parseInt(input.value, 10) || 0;
+            });
+            return total;
+        }
+
+        function getBermanScore() {
+            let total = 0;
+            document.querySelectorAll('input[name="berman-factor"]:checked').forEach(() => total += 1);
+            return total;
+        }
+
+        function getCrichtonScore() {
+            let total = 0;
+            document.querySelectorAll('input[name^="crichton-"]:checked').forEach(input => {
+                total += parseInt(input.value, 10) || 0;
+            });
+            return total;
+        }
+
+        function getRASSValue() {
+            const checked = document.querySelector('input[name="rass_score"]:checked');
+            return checked ? checked.value : '0';
+        }
+
+        function getMaddoxScore() {
+            const checked = document.querySelector('input[name="maddox_score"]:checked');
+            return checked ? parseInt(checked.value, 10) : 0;
+        }
+
+        function getEVAValue() {
+            const slider = document.getElementById('eva-slider');
+            return slider ? parseInt(slider.value, 10) : 0;
+        }
+
+        function interpretScale(scaleName, score, extra = null) {
+            let interpretation = '',
+                color = 'text-green-600',
+                bg = '#d4edda';
+            let title = '',
+                desc = '';
+
+            switch (scaleName) {
+                case 'apgar-1':
+                case 'apgar-5':
+                    if (score >= 7) { interpretation = 'Normal. Adaptación satisfactoria.';
+                        title = 'NORMAL';
+                        desc = 'Puntuación ≥ 7: Adaptación satisfactoria.';
+                        bg = '#d4edda'; } else if (score >= 4) { interpretation = 'Depresión moderada.';
+                        title = 'DEPRESIÓN MODERADA';
+                        desc = 'Puntuación 4-6: Requiere estímulo y oxígeno.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Depresión severa.';
+                        title = 'DEPRESIÓN SEVERA';
+                        desc = 'Puntuación ≤ 3: Requiere reanimación activa.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'capurro':
+                    const eg = Math.floor((score + 204) / 7);
+                    interpretation = `Edad Gestacional estimada: ${eg} semanas.`;
+                    title = `${eg} SEMANAS`;
+                    desc = `Puntuación total ${score} pts. Edad gestacional estimada mediante Capurro.`;
+                    bg = '#d4edda';
+                    color = 'text-green-600';
+                    break;
+                case 'glasgow':
+                    if (score >= 13) { interpretation = 'TCE Leve.';
+                        title = 'TCE LEVE';
+                        desc = 'Puntuación 13-15: Lesión leve.';
+                        bg = '#d4edda'; } else if (score >= 9) { interpretation = 'TCE Moderado.';
+                        title = 'TCE MODERADO';
+                        desc = 'Puntuación 9-12: Lesión moderada.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'TCE Grave.';
+                        title = 'TCE GRAVE';
+                        desc = 'Puntuación ≤ 8: Lesión grave. Considerar intubación.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'silverman':
+                    if (score === 0) { interpretation = 'Sin dificultad respiratoria.';
+                        title = 'SIN DIFICULTAD';
+                        desc = 'Puntuación 0: Sin dificultad.';
+                        bg = '#d4edda'; } else if (score <= 3) { interpretation = 'Dificultad respiratoria leve.';
+                        title = 'LEVE';
+                        desc = 'Puntuación 1-3: Dificultad leve.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score <= 6) { interpretation = 'Dificultad respiratoria moderada.';
+                        title = 'MODERADA';
+                        desc = 'Puntuación 4-6: Dificultad moderada.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Dificultad respiratoria severa.';
+                        title = 'SEVERA';
+                        desc = 'Puntuación 7-10: Dificultad severa. Requiere ventilación.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'berman':
+                    if (score === 0) { interpretation = 'Riesgo neonatal bajo.';
+                        title = 'RIESGO BAJO';
+                        desc = 'Puntuación 0: Sin factores de riesgo.';
+                        bg = '#d4edda'; } else if (score <= 3) { interpretation = 'Riesgo neonatal leve a moderado.';
+                        title = 'RIESGO LEVE-MODERADO';
+                        desc = 'Puntuación 1-3: Riesgo bajo a moderado.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score <= 6) { interpretation = 'Riesgo neonatal significativo.';
+                        title = 'RIESGO SIGNIFICATIVO';
+                        desc = 'Puntuación 4-6: Requiere vigilancia intensiva.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Riesgo neonatal alto/crítico.';
+                        title = 'RIESGO ALTO/CRÍTICO';
+                        desc = 'Puntuación ≥ 7: Requiere intervención o traslado inmediato.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'braden':
+                    if (score >= 19) { interpretation = 'Sin riesgo o riesgo muy bajo.';
+                        title = 'SIN RIESGO';
+                        desc = 'Puntuación 19-23: Riesgo muy bajo.';
+                        bg = '#d4edda'; } else if (score >= 15) { interpretation = 'Riesgo leve.';
+                        title = 'RIESGO LEVE';
+                        desc = 'Puntuación 15-18: Riesgo leve.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score >= 13) { interpretation = 'Riesgo moderado.';
+                        title = 'RIESGO MODERADO';
+                        desc = 'Puntuación 13-14: Riesgo moderado.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Riesgo alto.';
+                        title = 'RIESGO ALTO';
+                        desc = 'Puntuación ≤ 12: Riesgo alto. Protocolo prevención.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'norton':
+                    if (score >= 16) { interpretation = 'Riesgo bajo de úlcera.';
+                        title = 'RIESGO BAJO';
+                        desc = 'Puntuación ≥ 16: Riesgo bajo.';
+                        bg = '#d4edda'; } else if (score >= 13) { interpretation = 'Riesgo medio.';
+                        title = 'RIESGO MEDIO';
+                        desc = 'Puntuación 13-15: Riesgo medio.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else if (score >= 10) { interpretation = 'Riesgo alto.';
+                        title = 'RIESGO ALTO';
+                        desc = 'Puntuación 10-12: Riesgo alto.';
+                        bg = '#ffe5d0';
+                        color = 'text-orange-600'; } else { interpretation = 'Riesgo muy alto.';
+                        title = 'RIESGO MUY ALTO';
+                        desc = 'Puntuación ≤ 9: Riesgo muy alto.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'crichton':
+                    if (score <= 1) { interpretation = 'Riesgo bajo de caídas.';
+                        title = 'RIESGO BAJO';
+                        desc = 'Puntuación 0-1: Riesgo bajo.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score <= 3) { interpretation = 'Riesgo medio de caídas.';
+                        title = 'RIESGO MEDIO';
+                        desc = 'Puntuación 2-3: Riesgo medio.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Riesgo alto de caídas.';
+                        title = 'RIESGO ALTO';
+                        desc = 'Puntuación ≥ 4: Riesgo alto.';
+                        bg = '#ffb3b3';
+                        color = 'text-red-600'; }
+                    break;
+                case 'rass':
+                    const rassVal = extra || '0';
+                    let rassTitle = '',
+                        rassDesc = '',
+                        rassBg = '#d4edda';
+                    if (rassVal === '+4') { rassTitle = 'RIESGO EXTREMO';
+                        rassDesc = 'Combativo, violencia. Peligro inminente.';
+                        rassBg = '#f8d7da';
+                        color = 'text-red-600'; } else if (rassVal === '+3') { rassTitle = 'RIESGO MUY ALTO';
+                        rassDesc = 'Muy agitado, se quita tubos.';
+                        rassBg = '#ffe5d0';
+                        color = 'text-orange-600'; } else if (rassVal === '+2') { rassTitle = 'RIESGO ALTO';
+                        rassDesc = 'Agitado, lucha ventilador.';
+                        rassBg = '#fff3cd';
+                        color = 'text-yellow-600'; } else if (rassVal === '+1') { rassTitle = 'RIESGO MODERADO';
+                        rassDesc = 'Ansioso, inquieto.';
+                        rassBg = '#b3fbff';
+                        color = 'text-green-600'; } else if (rassVal === '0') { rassTitle = 'ESTADO ÓPTIMO';
+                        rassDesc = 'Alerta y tranquilo.';
+                        rassBg = '#d4edda';
+                        color = 'text-green-600'; } else if (rassVal === '-1') { rassTitle = 'SEDACIÓN LEVE';
+                        rassDesc = 'Adormitado, despierta a la voz.';
+                        rassBg = '#b3fbff';
+                        color = 'text-green-600'; } else if (rassVal === '-2') { rassTitle = 'SEDACIÓN LIGERA';
+                        rassDesc = 'Despierta a la voz (<10 seg).';
+                        rassBg = '#b3fbff';
+                        color = 'text-green-600'; } else if (rassVal === '-3') { rassTitle = 'SEDACIÓN MODERADA';
+                        rassDesc = 'Movimiento a la voz.';
+                        rassBg = '#fff3cd';
+                        color = 'text-yellow-600'; } else if (rassVal === '-4') { rassTitle = 'SEDACIÓN PROFUNDA';
+                        rassDesc = 'Movimiento a estímulo físico.';
+                        rassBg = '#ffe5d0';
+                        color = 'text-orange-600'; } else if (rassVal === '-5') { rassTitle = 'SEDACIÓN MÁXIMA';
+                        rassDesc = 'Sin respuesta alguna.';
+                        rassBg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    interpretation = rassDesc;
+                    title = rassTitle;
+                    desc = rassDesc;
+                    bg = rassBg;
+                    break;
+                case 'maddox':
+                    if (score <= 1) { interpretation = 'Sin riesgo de flebitis.';
+                        title = 'SIN RIESGO';
+                        desc = 'Puntuación 0-1: Sin evidencia de flebitis.';
+                        bg = '#d4edda'; } else if (score <= 3) { interpretation = 'Riesgo moderado de flebitis.';
+                        title = 'RIESGO MODERADO';
+                        desc = 'Puntuación 2-3: Signos incipientes.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else { interpretation = 'Riesgo alto de flebitis.';
+                        title = 'RIESGO ALTO';
+                        desc = 'Puntuación 4-5: Flebitis establecida.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'eva':
+                    if (score === 0) { interpretation = 'Ausencia de dolor.';
+                        title = 'SIN DOLOR';
+                        desc = 'Puntuación 0: Sin dolor.';
+                        bg = '#d4edda'; } else if (score <= 3) { interpretation = 'Dolor leve.';
+                        title = 'DOLOR LEVE';
+                        desc = 'Puntuación 1-3: Dolor leve.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score <= 6) { interpretation = 'Dolor moderado.';
+                        title = 'DOLOR MODERADO';
+                        desc = 'Puntuación 4-6: Dolor moderado.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else if (score <= 8) { interpretation = 'Dolor severo.';
+                        title = 'DOLOR SEVERO';
+                        desc = 'Puntuación 7-8: Dolor severo.';
+                        bg = '#ffe5d0';
+                        color = 'text-orange-600'; } else { interpretation = 'Dolor insoportable.';
+                        title = 'DOLOR INSOPORTABLE';
+                        desc = 'Puntuación 9-10: Dolor insoportable.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                case 'barthel':
+                    if (score === 100) { interpretation = 'Independencia total.';
+                        title = 'INDEPENDIENTE';
+                        desc = 'Puntuación 100: Totalmente independiente.';
+                        bg = '#d4edda'; } else if (score >= 91) { interpretation = 'Dependencia leve.';
+                        title = 'DEPENDENCIA LEVE';
+                        desc = 'Puntuación 91-99: Dependencia leve.';
+                        bg = '#b3fbff';
+                        color = 'text-green-600'; } else if (score >= 61) { interpretation = 'Dependencia moderada.';
+                        title = 'DEPENDENCIA MODERADA';
+                        desc = 'Puntuación 61-90: Dependencia moderada.';
+                        bg = '#fff3cd';
+                        color = 'text-yellow-600'; } else if (score >= 21) { interpretation = 'Dependencia severa.';
+                        title = 'DEPENDENCIA SEVERA';
+                        desc = 'Puntuación 21-60: Dependencia severa.';
+                        bg = '#ffe5d0';
+                        color = 'text-orange-600'; } else { interpretation = 'Dependencia total.';
+                        title = 'DEPENDENCIA TOTAL';
+                        desc = 'Puntuación ≤ 20: Dependencia total.';
+                        bg = '#f8d7da';
+                        color = 'text-red-600'; }
+                    break;
+                default:
+                    interpretation = 'Puntuación no interpretada.';
+                    title = 'SIN CLASIFICACIÓN';
+                    desc = '';
+            }
+            return { score, interpretation, title, desc, bg, color };
+        }
+
+        function updateResult(scaleId, score, extra = null) {
+            const result = interpretScale(scaleId, score, extra);
+            const container = document.getElementById(`${scaleId}-result`);
+            if (!container) return;
+            container.innerHTML = `
+                <div class="result-panel" style="background-color: ${result.bg};">
+                    <div class="score-circle">${score}</div>
+                    <div class="result-info">
+                        <h2 class="${result.color}">${result.title}</h2>
+                        <p>${result.desc}</p>
+                        <p class="text-sm text-gray-600 mt-1">${result.interpretation}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateApgar1() { const score = getScaleScore('apgar-1'); updateResult('apgar-1', score); }
+        function updateApgar5() { const score = getScaleScore('apgar-5'); updateResult('apgar-5', score); }
+        function updateCapurro() { const score = getScaleScore('capurro'); updateResult('capurro', score); }
+        function updateGlasgow() { const score = getScaleScore('glasgow'); updateResult('glasgow', score); }
+        function updateSilverman() { const score = getScaleScore('silverman'); updateResult('silverman', score); }
+        function updateBermanScore() { const score = getBermanScore(); updateResult('berman', score); }
+        function updateBraden() { const score = getScaleScore('braden'); updateResult('braden', score); }
+        function updateNorton() { const score = getScaleScore('norton'); updateResult('norton', score); }
+        function updateCrichtonScore() { const score = getCrichtonScore(); updateResult('crichton', score); }
+        function updateRASS() { const val = getRASSValue(); updateResult('rass', parseInt(val.replace('+', ''), 10) || 0, val); }
+        function updateMaddox() { const score = getMaddoxScore(); updateResult('maddox', score); }
+        function updateEVA() { const score = getEVAValue(); document.getElementById('eva-display').textContent = score; updateResult('eva', score); }
+        function updateBarthel() { const score = getScaleScore('barthel'); updateResult('barthel', score); }
+
+        // =====================================================================
+        // 8. FUNCIÓN PARA MOSTRAR TOAST
+        // =====================================================================
+
+        function mostrarToast(mensaje, tipo = "success") {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = mensaje;
+            toast.className = 'toast-message';
+            if (tipo === "error") {
+                toast.classList.add('error');
+            }
+            toast.classList.add('show');
+
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        // =====================================================================
+        // 9. LÓGICA DE MENÚ, NAVEGACIÓN Y COMPLETITUD
+        // =====================================================================
+
+        function renderMenu() {
+            const menu = document.getElementById('scale-menu');
+            menu.innerHTML = '';
+            scalesMeta.forEach(meta => {
+                const isComplete = state.completed[meta.id] || false;
+                const card = document.createElement('div');
+                card.className = `scale-card ${isComplete ? 'completed' : ''}`;
+                card.innerHTML = `
+                    <span class="icon">${meta.icon}</span>
+                    <div class="title">${meta.label}</div>
+                    <span class="badge">${isComplete ? '✓ Completada' : 'Pendiente'}</span>
+                `;
+                card.addEventListener('click', () => openScale(meta.id));
+                menu.appendChild(card);
+            });
+            const hasAnyCompleted = Object.values(state.completed).some(v => v === true);
+            const finalizarBtn = document.getElementById('finalizar-btn');
+            if (hasAnyCompleted) {
+                finalizarBtn.classList.remove('hidden');
+            } else {
+                finalizarBtn.classList.add('hidden');
+            }
+        }
+
+        function openScale(scaleId) {
+            document.getElementById('menu-panel').classList.add('hidden-panel');
+            document.getElementById('scale-panel').classList.remove('hidden-panel');
+
+            const meta = scalesMeta.find(m => m.id === scaleId);
+            const titleEl = document.getElementById('scale-title');
+            titleEl.textContent = meta ? meta.label : '';
+            titleEl.dataset.scaleId = scaleId;
+
+            const container = document.getElementById('scale-content');
+            container.innerHTML = buildScaleContent(scaleId);
+
+            rebuildScaleForm(scaleId);
+        }
+
+        function goBackToMenu() {
+            document.getElementById('scale-panel').classList.add('hidden-panel');
+            document.getElementById('menu-panel').classList.remove('hidden-panel');
+            renderMenu();
+        }
+
+        // =====================================================================
+        // 10. FUNCIÓN PARA GENERAR PDF DIRECTAMENTE (Usando jsPDF AutoTable)
+        // =====================================================================
+
+        function printReport() {
+            try {
+                saveState();
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'portrait', format: 'letter' });
+
+                const paciente = document.getElementById('paciente').value.trim() || 'Sin_Nombre';
+                const historia = document.getElementById('historia').value.trim() || 'Sin_HC';
+                const edad = document.getElementById('edad').value.trim() || 'N/A';
+                const fecha = document.getElementById('fecha').value.trim() || 'N/A';
+                const depto = document.getElementById('departamento').value.trim() || 'N/A';
+                const servicio = document.getElementById('servicio').value.trim() || 'N/A';
+
+                // Encabezado institucional en el PDF
+                doc.setFillColor(79, 140, 247);
+                doc.rect(10, 10, 195, 18, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(13);
+                doc.setFont("Helvetica", "Bold");
+                doc.text("INFORME DE VALORACIÓN INTEGRAL - ESCALAS CLÍNICAS", 14, 21);
+
+                // Datos Generales del Paciente en Tabla Resumen
+                let bodyContent = [
+                    [{ content: "DATOS GENERALES DEL PACIENTE", colSpan: 2, styles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold' } }],
+                    ["Nombre del Paciente", paciente],
+                    ["Historia Clínica / Registro", historia],
+                    ["Edad", edad],
+                    ["Fecha de Evaluación", fecha],
+                    ["Departamento", depto],
+                    ["Servicio", servicio]
+                ];
+
+                // Recorrer escalas completadas y agregarlas a la estructura del PDF (limpiando saltos y caracteres raros)
+                for (const meta of scalesMeta) {
+                    if (state.completed[meta.id]) {
+                        bodyContent.push([{ content: `ESCALA: ${meta.label.toUpperCase()}`, colSpan: 2, styles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold' } }]);
+                        
+                        const values = state.scaleValues[meta.id] || {};
+
+                        switch (meta.id) {
+                            case 'apgar-1':
+                            case 'apgar-5':
+                            case 'capurro':
+                            case 'glasgow':
+                            case 'silverman':
+                            case 'braden':
+                            case 'norton':
+                            case 'barthel': {
+                                let data;
+                                if (meta.id.startsWith('apgar')) data = apgarData;
+                                else if (meta.id === 'capurro') data = capurroData;
+                                else if (meta.id === 'glasgow') data = glasgowData;
+                                else if (meta.id === 'silverman') data = silvermanData;
+                                else if (meta.id === 'braden') data = bradenData;
+                                else if (meta.id === 'norton') data = nortonData;
+                                else if (meta.id === 'barthel') data = barthelData;
+
+                                let sum = 0;
+                                data.forEach(item => {
+                                    const val = values[item.id];
+                                    if (val !== undefined) {
+                                        const desc = item.valores.find(v => v.score == val);
+                                        const cleanDesc = desc ? desc.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ') : '';
+                                        bodyContent.push([item.nombre, `${cleanDesc} (${val} pts)`]);
+                                        sum += parseInt(val, 10);
+                                    }
+                                });
+                                const res = interpretScale(meta.id, sum);
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Puntuación Total e Interpretación", `${sum} pts - ${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                            case 'berman': {
+                                let count = 0;
+                                bermanData.forEach(item => {
+                                    const selected = values[item.id] === 1;
+                                    if (selected) {
+                                        bodyContent.push([item.nombre, "Presente (1 pt)"]);
+                                        count++;
+                                    }
+                                });
+                                const res = interpretScale('berman', count);
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Puntuación Total e Interpretación", `${count} pts - ${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                            case 'crichton': {
+                                let sum = 0;
+                                crichtonData.forEach(item => {
+                                    const val = values[item.id];
+                                    if (val !== undefined) {
+                                        const desc = item.valores.find(v => v.score == val);
+                                        const cleanDesc = desc ? desc.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ') : '';
+                                        bodyContent.push([item.nombre, `${cleanDesc} (${val} pts)`]);
+                                        sum += parseInt(val, 10);
+                                    }
+                                });
+                                const res = interpretScale('crichton', sum);
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Puntuación Total e Interpretación", `${sum} pts - ${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                            case 'rass': {
+                                const selected = values.rass;
+                                const opt = rassOptions.find(o => o.score == selected);
+                                bodyContent.push(["Nivel RASS Seleccionado", opt ? `${opt.score} - ${opt.label}` : 'No especificado']);
+                                const res = interpretScale('rass', parseInt(selected) || 0, selected || '0');
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Interpretación", `${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                            case 'maddox': {
+                                const selected = values.maddox;
+                                const opt = maddoxOptions.find(o => o.score == selected);
+                                bodyContent.push(["Grado Maddox", opt ? opt.label : 'No especificado']);
+                                const res = interpretScale('maddox', selected || 0);
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Puntuación e Interpretación", `${selected !== undefined ? selected : 0} pts - ${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                            case 'eva': {
+                                const selected = values.eva || 0;
+                                const res = interpretScale('eva', selected);
+                                const cleanDescRes = res.desc.replace(/[^\w\sáéíóúÁÉÍÓÚñÑ().,-]/gi, ' ');
+                                bodyContent.push(["Intensidad del Dolor (EVA)", `${selected} / 10 - ${res.title}: ${cleanDescRes}`]);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Generación de tabla optimizada con márgenes y anchos exactos al ancho útil de la hoja (195 mm)
+                doc.autoTable({
+                    startY: 32,
+                    head: [['Parámetro / Criterio Clínico', 'Resultado Registrado']],
+                    body: bodyContent,
+                    theme: 'grid',
+                    headStyles: { fillColor: [79, 140, 247], textColor: [255, 255, 255], fontSize: 9 },
+                    styles: { fontSize: 7.5, overflow: 'linebreak', cellPadding: 2.5 },
+                    columnStyles: { 
+                        0: { cellWidth: 65 },  // Ancho para títulos de criterios
+                        1: { cellWidth: 130 }  // Ancho exacto restante para que la interpretación quepa sin salirse
+                    },
+                    margin: { left: 10, right: 10 }
+                });
+
+                // Nombre estricto requerido: VG-Nombre paciente-Numero registro o historia clínica-fecha y hora
+                const ahora = new Date();
+                const yyyy = ahora.getFullYear();
+                const mm = String(ahora.getMonth() + 1).padStart(2, '0');
+                const dd = String(ahora.getDate()).padStart(2, '0');
+                const hh = String(ahora.getHours()).padStart(2, '0');
+                const min = String(ahora.getMinutes()).padStart(2, '0');
+                const fechaHoraStr = `${yyyy}-${mm}-${dd}_${hh}-${min}`;
+
+                const nombreLimpio = paciente.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+                const registroLimpio = historia.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+                const nombreArchivoFinal = `VG-${nombreLimpio}-${registroLimpio}-${fechaHoraStr}.pdf`;
+
+                doc.save(nombreArchivoFinal);
+                mostrarToast(`📄 PDF generado y descargado con éxito: ${nombreArchivoFinal}`, "success");
+            } catch (e) {
+                console.error("Error al generar PDF:", e);
+                mostrarToast("❌ Error al generar el documento PDF.", "error");
+            }
+        }
+
+        // =====================================================================
+        // 11. FUNCIÓN PARA NUEVA VALORACIÓN (resetear todo)
+        // =====================================================================
+
+        function resetApp() {
+            if (!confirm('¿Está seguro de que desea eliminar todos los datos y comenzar una nueva valoración?')) return;
+
+            localStorage.removeItem(STORAGE_KEY);
+
+            state = {
+                paciente: { nombre: '', historia: '', edad: '', fecha: '', departamento: '', servicio: '' },
+                scaleValues: {},
+                completed: {}
+            };
+
+            document.getElementById('paciente').value = '';
+            document.getElementById('historia').value = '';
+            document.getElementById('edad').value = '';
+            document.getElementById('fecha').value = new Date().toISOString().slice(0, 10);
+            document.getElementById('departamento').value = '';
+            document.getElementById('servicio').value = '';
+
+            document.getElementById('scale-panel').classList.add('hidden-panel');
+            document.getElementById('menu-panel').classList.remove('hidden-panel');
+
+            llaveActivaOriginal = null;
+            document.getElementById('select-archivo').value = '';
+            document.getElementById('btn-eliminar-seleccionado').disabled = true;
+
+            renderMenu();
+            actualizarHistorialLocal();
+            mostrarToast("🧹 Valoración reiniciada correctamente.", "success");
+        }
+
+        // =====================================================================
+        // 12. INICIALIZACIÓN Y EVENTOS
+        // =====================================================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            state = loadState();
+
+            document.getElementById('paciente').value = state.paciente.nombre || '';
+            document.getElementById('historia').value = state.paciente.historia || '';
+            document.getElementById('edad').value = state.paciente.edad || '';
+            document.getElementById('fecha').value = state.paciente.fecha || new Date().toISOString().slice(0, 10);
+            document.getElementById('departamento').value = state.paciente.departamento || '';
+            document.getElementById('servicio').value = state.paciente.servicio || '';
+
+            document.querySelectorAll('#paciente, #historia, #edad, #fecha, #departamento, #servicio').forEach(input => {
+                input.addEventListener('input', function() {
+                    state.paciente[this.id] = this.value;
+                    saveState();
+                });
+                input.addEventListener('change', function() {
+                    state.paciente[this.id] = this.value;
+                    saveState();
+                });
+            });
+
+            renderMenu();
+            actualizarHistorialLocal();
+
+            document.getElementById('back-to-menu').addEventListener('click', goBackToMenu);
+
+            // El botón "Finalizar" genera el PDF directamente mediante jsPDF AutoTable
+            document.getElementById('finalizar-btn').addEventListener('click', printReport);
+
+            document.getElementById('guardar-expediente-btn').addEventListener('click', guardarExpediente);
+
+            document.getElementById('reset-btn').addEventListener('click', resetApp);
+
+            document.getElementById('select-archivo').addEventListener('change', function() {
+                const llave = this.value;
+                document.getElementById('btn-eliminar-seleccionado').disabled = !llave;
+                if (llave) {
+                    cargarExpedienteDesdeArchivo(llave);
+                }
+            });
+
+            document.getElementById('btn-eliminar-seleccionado').addEventListener('click', function() {
+                const select = document.getElementById('select-archivo');
+                const llave = select.value;
+                if (llave) {
+                    eliminarExpedienteLocal(llave);
+                }
+            });
+        });
+
+        // Exponer funciones globales
+        window.updateApgar1 = updateApgar1;
+        window.updateApgar5 = updateApgar5;
+        window.updateCapurro = updateCapurro;
+        window.updateGlasgow = updateGlasgow;
+        window.updateSilverman = updateSilverman;
+        window.updateBermanScore = updateBermanScore;
+        window.updateBraden = updateBraden;
+        window.updateNorton = updateNorton;
+        window.updateCrichtonScore = updateCrichtonScore;
+        window.updateRASS = updateRASS;
+        window.updateMaddox = updateMaddox;
+        window.updateEVA = updateEVA;
+        window.updateBarthel = updateBarthel;
+
+        window.onRadioChange = onRadioChange;
+        window.onBermanChange = onBermanChange;
+        window.onRASSChange = onRASSChange;
+        window.onMaddoxChange = onMaddoxChange;
+        window.onEVAChange = onEVAChange;
+
+        window.cargarExpedienteDesdeArchivo = cargarExpedienteDesdeArchivo;
+        window.eliminarExpedienteLocal = eliminarExpedienteLocal;
+        window.guardarExpediente = guardarExpediente;
+    </script>
+</body>
+</html>

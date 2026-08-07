@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valoración de Patrones Funcionales de Marjorie Gordon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; overflow-x: hidden; }
+        .iframe-container { height: 100vh; width: 100%; border: none; }
+        
+        /* Estilo para el botón flotante arrastrable */
+        .btn-flotante-inicio {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #0284c7, #0369a1);
+            color: white;
+            padding: 12px 22px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            box-shadow: 0 10px 25px rgba(2, 132, 199, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: grab;
+            user-select: none;
+            transition: box-shadow 0.3s ease, background 0.3s ease;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            touch-action: none;
+        }
+        .btn-flotante-inicio:active {
+            cursor: grabbing;
+        }
+        .btn-flotante-inicio:hover {
+            box-shadow: 0 15px 30px rgba(2, 132, 199, 0.45);
+            background: linear-gradient(135deg, #0369a1, #075985);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- ENCABEZADO SIMPLE Y ELEGANTE -->
+    <header id="app-header" class="bg-slate-900 text-white shadow-md border-b border-slate-800 no-print transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 py-3.5 flex justify-between items-center">
+            <div>
+                <h1 class="text-lg md:text-xl font-bold tracking-tight text-slate-100">
+                    Valoración de Patrones Funcionales de Marjorie Gordon
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">
+                    Módulo Clínico de Enfermería
+                </p>
+            </div>
+            <span class="text-[11px] bg-slate-800 text-slate-300 border border-slate-700 px-3 py-1 rounded-full font-semibold hidden sm:inline-block">
+                Módulo Clínico
+            </span>
+        </div>
+    </header>
+
+    <!-- BARRA DE SELECCIÓN INICIAL (SELECTOR LIMPIO) -->
+    <nav id="app-nav" class="bg-white border-b border-slate-200 shadow-sm px-6 py-3 no-print transition-all duration-300">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <label for="select-modulo" class="font-bold text-slate-700 text-sm whitespace-nowrap">
+                    Seleccionar Módulo:
+                </label>
+                <select id="select-modulo" onchange="cambiarModuloDesdeSelector()" class="w-full sm:w-72 border border-slate-300 bg-slate-50 font-semibold text-slate-800 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer shadow-sm transition">
+                    <option value="" disabled selected>-- Elija una opción --</option>
+                    <option value="neonato">1. Neonato</option>
+                    <option value="pediatrico">2. Pediatrico-Adolescente</option>
+                    <option value="mujer">3. Mujer</option>
+                    <option value="hombre">4. Hombre</option>
+                </select>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ÁREA DE CONTENIDO / VISOR -->
+    <main class="flex-1 relative" id="main-content">
+        
+        <!-- PANTALLA DE BIENVENIDA MINIMALISTA -->
+        <div id="welcome-screen" class="max-w-4xl mx-auto p-8 md:p-14 text-center">
+            <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+                <div class="w-16 h-16 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+                    📋
+                </div>
+                <h2 class="text-xl font-bold text-slate-800 mb-2">Panel de Valoraciones Clínicas</h2>
+                <p class="text-slate-500 text-sm max-w-lg mx-auto mb-6">
+                    Por favor, despliegue el menú superior y seleccione el módulo que desea trabajar para ocultar este panel y maximizar el área de trabajo.
+                </p>
+                <div class="inline-flex items-center gap-2 text-xs font-semibold text-sky-600 bg-sky-50 px-4 py-2 rounded-xl border border-sky-100">
+                     Consejo: Al seleccionar el módulo, aparecerá un botón flotante que puedes arrastrar a donde prefieras.
+                </div>
+            </div>
+        </div>
+
+        <!-- VISOR IFRAME -->
+        <iframe id="modulo-viewer" class="iframe-container hidden" src="about:blank"></iframe>
+
+    </main>
+
+    <!-- BOTÓN FLOTANTE ARRASTRABLE PARA REGRESAR A INICIO -->
+    <button id="btn-regresar" class="btn-flotante-inicio hidden no-print">
+        <span>⬅️</span> Regresar a Inicio
+    </button>
+
+    <script>
+        const RUTAS_MODULOS = {
+            'neonato': '1.2. Valoracion Neonatal.html',
+            'pediatrico': '1.3. Valoracion Pediatrica.html',
+            'mujer': '1.4. Valoracion Mujer.html',
+            'hombre': '1.5. Valoracion Hombre.html'
+        };
+
+        function cambiarModuloDesdeSelector() {
+            const selector = document.getElementById('select-modulo');
+            const claveModulo = selector.value;
+            if (claveModulo) {
+                cargarModuloEnIframe(claveModulo);
+            }
+        }
+
+        function cargarModuloEnIframe(claveModulo) {
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const appHeader = document.getElementById('app-header');
+            const appNav = document.getElementById('app-nav');
+            const iframe = document.getElementById('modulo-viewer');
+            const btnRegresar = document.getElementById('btn-regresar');
+            const rutaArchivo = RUTAS_MODULOS[claveModulo];
+
+            if (rutaArchivo) {
+                appHeader.classList.add('hidden');
+                appNav.classList.add('hidden');
+                welcomeScreen.classList.add('hidden');
+                
+                iframe.classList.remove('hidden');
+                btnRegresar.classList.remove('hidden');
+                
+                iframe.src = rutaArchivo;
+            }
+        }
+
+        function volverAInicio() {
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const appHeader = document.getElementById('app-header');
+            const appNav = document.getElementById('app-nav');
+            const iframe = document.getElementById('modulo-viewer');
+            const btnRegresar = document.getElementById('btn-regresar');
+            const selector = document.getElementById('select-modulo');
+
+            selector.value = "";
+            iframe.src = "about:blank";
+            iframe.classList.add('hidden');
+            btnRegresar.classList.add('hidden');
+            
+            appHeader.classList.remove('hidden');
+            appNav.classList.remove('hidden');
+            welcomeScreen.classList.remove('hidden');
+        }
+
+        // =====================================================================
+        // LÓGICA DE ARRASTRE PARA EL BOTÓN FLOTANTE (MOUSE Y TÁCTIL)
+        // =====================================================================
+        const btnRegresar = document.getElementById('btn-regresar');
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+        let hasMoved = false; // Para diferenciar entre arrastrar y hacer clic
+
+        function iniciarArrastre(clientX, clientY) {
+            isDragging = true;
+            hasMoved = false;
+            
+            const rect = btnRegresar.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+
+            // Cambiar a posicionamiento absoluto basado en coordenadas de ventana
+            btnRegresar.style.position = 'fixed';
+            btnRegresar.style.bottom = 'auto';
+            btnRegresar.style.right = 'auto';
+            btnRegresar.style.left = initialLeft + 'px';
+            btnRegresar.style.top = initialTop + 'px';
+
+            startX = clientX;
+            startY = clientY;
+        }
+
+        function moverArrastre(clientX, clientY) {
+            if (!isDragging) return;
+            
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                hasMoved = true;
+            }
+
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+
+            // Limitar para que no salga de la pantalla
+            const maxLeft = window.innerWidth - btnRegresar.offsetWidth;
+            const maxTop = window.innerHeight - btnRegresar.offsetHeight;
+
+            newLeft = Math.max(10, Math.min(newLeft, maxLeft - 10));
+            newTop = Math.max(10, Math.min(newTop, maxTop - 10));
+
+            btnRegresar.style.left = newLeft + 'px';
+            btnRegresar.style.top = newTop + 'px';
+        }
+
+        function finalizarArrastre() {
+            if (!isDragging) return;
+            isDragging = false;
+        }
+
+        // Eventos de Mouse
+        btnRegresar.addEventListener('mousedown', (e) => {
+            iniciarArrastre(e.clientX, e.clientY);
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            moverArrastre(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('mouseup', finalizarArrastre);
+
+        // Eventos Táctiles (para dispositivos móviles o tablets)
+        btnRegresar.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                iniciarArrastre(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+                moverArrastre(e.touches[0].clientX, e.touches[0].clientY);
+            }
+        });
+
+        window.addEventListener('touchend', finalizarArrastre);
+
+        // Control del Clic / Toque: Si se arrastró, no ejecuta la acción de regresar
+        btnRegresar.addEventListener('click', (e) => {
+            if (hasMoved) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                hasMoved = false;
+            } else {
+                volverAInicio();
+            }
+        });
+    </script>
+</body>
+</html>
