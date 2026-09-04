@@ -17,17 +17,23 @@
         .auth-card {
             background: white; border-radius: 12px; width: 100%; max-width: 440px;
             padding: 2rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+            max-height: 95vh; overflow-y: auto;
         }
         .auth-card h2 { font-size: 1.3rem; margin-bottom: 0.5rem; color: #0f172a; text-align: center; }
-        .auth-card p.subtitle { font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem; text-align: center; }
+        .auth-card p.subtitle { font-size: 0.85rem; color: #64748b; margin-bottom: 1.25rem; text-align: center; }
         
-        .form-group { margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; position: relative; }
         .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; color: #334155; }
         .form-group input {
             width: 100%; padding: 0.65rem 0.8rem; border: 1px solid #cbd5e1;
-            border-radius: 6px; font-size: 0.9rem; font-family: inherit; outline: none;
+            border-radius: 6px; font-size: 0.9rem; font-family: inherit; outline: none; transition: 0.2s;
         }
-        .form-group input:focus { border-color: #0f172a; ring: 2px solid #0f172a; }
+        .form-group input:focus { border-color: #0f172a; }
+        
+        /* Validaciones visuales */
+        .input-error { border-color: #ef4444 !important; background-color: #fef2f2; }
+        .input-success { border-color: #22c55e !important; background-color: #f0fdf4; }
+        .field-feedback { font-size: 0.75rem; color: #ef4444; margin-top: 0.3rem; display: none; font-weight: 500; }
         
         .btn-submit {
             width: 100%; padding: 0.75rem; background: #0f172a; color: white; border: none;
@@ -36,12 +42,14 @@
         .btn-submit:hover { background: #1e293b; }
         
         .auth-links { margin-top: 1rem; text-align: center; font-size: 0.85rem; }
-        .auth-links a { color: #2563eb; text-decoration: none; font-weight: 600; cursor: pointer; }
+        .auth-links a { color: #2563eb; text-decoration: none; font-weight: 600; cursor: pointer; display: block; margin-top: 0.4rem; }
         .auth-links a:hover { text-decoration: underline; }
-        .error-msg { color: #dc2626; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; display: none; }
-        .success-msg { color: #16a34a; font-size: 0.8rem; margin-top: 0.5rem; text-align: center; display: none; }
+        .auth-links a.danger-link { color: #dc2626; font-size: 0.8rem; margin-top: 1rem; border-top: 1px solid #f1f5f9; padding-top: 0.8rem; }
+        
+        .error-msg { background: #fee2e2; color: #b91c1c; padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.75rem; text-align: center; display: none; }
+        .success-msg { background: #dcfce7; color: #15803d; padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.75rem; text-align: center; display: none; }
 
-        /* Contenedor Principal de la App */
+        /* Contenedor Principal */
         #app-container { display: none; height: 100vh; flex-direction: column; }
         header { background: #0f172a; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
         header h1 { font-size: 1.15rem; font-weight: 600; }
@@ -61,9 +69,11 @@
 </head>
 <body>
 
+    <!-- Modal de Seguridad -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-card">
             
+            <!-- Vista: Registro Inicial -->
             <form id="registerForm" style="display: none;">
                 <h2>Activar Usuario</h2>
                 <p class="subtitle">Configure sus credenciales de acceso local</p>
@@ -79,17 +89,18 @@
                 <div class="form-group">
                     <label>Confirmar Contraseña</label>
                     <input type="password" id="regPassConfirm" required>
+                    <div class="field-feedback" id="regMismatchAlert">⚠️ Las contraseñas no coinciden</div>
                 </div>
                 <div class="form-group">
-                    <label>Escriba su Pregunta de Seguridad Personal</label>
-                    <input type="text" id="regQuestion" placeholder="Ej: ¿Cuál es el nombre de mi primera mascota?" required>
+                    <label>Pregunta Personal de Seguridad</label>
+                    <input type="text" id="regQuestion" placeholder="Ej: ¿Cuál es mi comida favorita?" required>
                 </div>
                 <div class="form-group">
                     <label>Respuesta a su Pregunta</label>
                     <input type="text" id="regAnswer" required autocomplete="off">
                 </div>
                 <div class="form-group">
-                    <label>Fecha Clave Importante (Cumpleaños, aniversario, etc.)</label>
+                    <label>Fecha Clave (Cumpleaños, aniversario, etc.)</label>
                     <input type="date" id="regDate" required>
                 </div>
 
@@ -97,9 +108,10 @@
                 <button type="submit" class="btn-submit">Guardar y Activar</button>
             </form>
 
+            <!-- Vista: Login -->
             <form id="loginForm" style="display: none;">
                 <h2>Iniciar Sesión</h2>
-                <p class="subtitle" id="loginWelcome">Hola Darwin-Ingrese sus datos para acceder</p>
+                <p class="subtitle">Ingrese sus credenciales para acceder</p>
                 
                 <div class="form-group">
                     <label>Usuario / Alias</label>
@@ -114,10 +126,11 @@
                 <button type="submit" class="btn-submit">Entrar al Sistema</button>
                 
                 <div class="auth-links">
-                    <a id="linkToRecover">Recuperar contraseña</a>
+                    <a id="linkToRecover">¿Olvidó su contraseña? Recuperar aquí</a>
                 </div>
             </form>
 
+            <!-- Vista: Recuperación -->
             <form id="recoverForm" style="display: none;">
                 <h2>Recuperar Contraseña</h2>
                 <p class="subtitle">Responda a sus filtros de seguridad</p>
@@ -134,6 +147,11 @@
                     <label>Nueva Contraseña</label>
                     <input type="password" id="recNewPass" required>
                 </div>
+                <div class="form-group">
+                    <label>Confirmar Nueva Contraseña</label>
+                    <input type="password" id="recNewPassConfirm" required>
+                    <div class="field-feedback" id="recMismatchAlert">⚠️ Las contraseñas no coinciden</div>
+                </div>
 
                 <div class="error-msg" id="recError"></div>
                 <div class="success-msg" id="recSuccess"></div>
@@ -141,12 +159,14 @@
                 
                 <div class="auth-links">
                     <a id="linkToLogin">Volver al inicio de sesión</a>
+                    <a id="linkResetAll" class="danger-link">¿No puede recuperar? Eliminar datos y crear un usuario nuevo</a>
                 </div>
             </form>
 
         </div>
     </div>
 
+    <!-- Contenedor Principal de la App -->
     <div id="app-container">
         <header>
             <h1>Herramienta para Creación de Planes de Atención de Enfermería</h1>
@@ -168,7 +188,7 @@
     </div>
 
     <script>
-        // Encriptación segura utilizando SHA-256 nativo
+        // Cifrado criptográfico SHA-256 nativo
         async function hashData(text) {
             const encoder = new TextEncoder();
             const data = encoder.encode(text.trim().toLowerCase());
@@ -186,7 +206,6 @@
             escalas: '2. Escalas de Valoración.html'
         };
 
-        // Elementos UI
         const authOverlay = document.getElementById('authOverlay');
         const appContainer = document.getElementById('app-container');
         const registerForm = document.getElementById('registerForm');
@@ -194,14 +213,54 @@
         const recoverForm = document.getElementById('recoverForm');
         const iframe = document.getElementById('mainFrame');
 
+        const regPass = document.getElementById('regPass');
+        const regPassConfirm = document.getElementById('regPassConfirm');
+        const regMismatchAlert = document.getElementById('regMismatchAlert');
+
+        const recNewPass = document.getElementById('recNewPass');
+        const recNewPassConfirm = document.getElementById('recNewPassConfirm');
+        const recMismatchAlert = document.getElementById('recMismatchAlert');
+
+        // Validación visual en tiempo real
+        function checkPasswordsMatch(passInput, confirmInput, alertEl) {
+            const p1 = passInput.value;
+            const p2 = confirmInput.value;
+
+            if (p2.length === 0) {
+                confirmInput.classList.remove('input-error', 'input-success');
+                alertEl.style.display = 'none';
+                return true;
+            }
+
+            if (p1 !== p2) {
+                confirmInput.classList.add('input-error');
+                confirmInput.classList.remove('input-success');
+                alertEl.style.display = 'block';
+                return false;
+            } else {
+                confirmInput.classList.remove('input-error');
+                confirmInput.classList.add('input-success');
+                alertEl.style.display = 'none';
+                return true;
+            }
+        }
+
+        regPassConfirm.addEventListener('input', () => checkPasswordsMatch(regPass, regPassConfirm, regMismatchAlert));
+        regPass.addEventListener('input', () => {
+            if (regPassConfirm.value.length > 0) checkPasswordsMatch(regPass, regPassConfirm, regMismatchAlert);
+        });
+
+        recNewPassConfirm.addEventListener('input', () => checkPasswordsMatch(recNewPass, recNewPassConfirm, recMismatchAlert));
+        recNewPass.addEventListener('input', () => {
+            if (recNewPassConfirm.value.length > 0) checkPasswordsMatch(recNewPass, recNewPassConfirm, recMismatchAlert);
+        });
+
         function initAuth() {
             const stored = localStorage.getItem(STORAGE_KEY);
             const session = sessionStorage.getItem(SESSION_KEY);
 
             if (!stored) {
-                registerForm.style.display = 'block';
-                loginForm.style.display = 'none';
-                recoverForm.style.display = 'none';
+                showRegisterForm();
             } else if (session) {
                 showApp(session);
             } else {
@@ -209,10 +268,21 @@
             }
         }
 
+        function showRegisterForm() {
+            loginForm.style.display = 'none';
+            recoverForm.style.display = 'none';
+            registerForm.style.display = 'block';
+            registerForm.reset();
+            regPassConfirm.classList.remove('input-error', 'input-success');
+            regMismatchAlert.style.display = 'none';
+            document.getElementById('regError').style.display = 'none';
+        }
+
         function showLoginForm() {
             registerForm.style.display = 'none';
             recoverForm.style.display = 'none';
             loginForm.style.display = 'block';
+            loginForm.reset();
             document.getElementById('loginError').style.display = 'none';
         }
 
@@ -221,28 +291,30 @@
             appContainer.style.display = 'flex';
             document.getElementById('activeUserDisplay').textContent = username;
             
-            // Cargar iframe predeterminado al entrar
             if (iframe.src === 'about:blank' || iframe.src === '') {
                 iframe.src = routes.gordon;
             }
         }
 
-        // Registro de usuario
+        // Registro de Usuario
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const err = document.getElementById('regError');
             err.style.display = 'none';
 
             const user = document.getElementById('regUser').value.trim();
-            const pass = document.getElementById('regPass').value;
-            const passConfirm = document.getElementById('regPassConfirm').value;
+            const pass = regPass.value;
+            const passConfirm = regPassConfirm.value;
             const question = document.getElementById('regQuestion').value.trim();
             const answer = document.getElementById('regAnswer').value;
             const date = document.getElementById('regDate').value;
 
             if (pass !== passConfirm) {
-                err.textContent = 'Las contraseñas no coinciden.';
+                regPassConfirm.classList.add('input-error');
+                regMismatchAlert.style.display = 'block';
+                err.textContent = 'Las contraseñas no coinciden. Por favor, verifíquelas.';
                 err.style.display = 'block';
+                regPassConfirm.focus();
                 return;
             }
 
@@ -259,7 +331,7 @@
             showApp(user);
         });
 
-        // Inicio de sesión
+        // Inicio de Sesión
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const err = document.getElementById('loginError');
@@ -280,21 +352,43 @@
             }
         });
 
-        // Navegación a Recuperación de Contraseña
+        // Formulario de Recuperación
         document.getElementById('linkToRecover').addEventListener('click', () => {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
             if (!saved) return;
 
-            document.getElementById('lblSecurityQuestion').textContent = saved.question;
+            document.getElementById('lblSecurityQuestion').textContent = 'Pregunta registrada: ' + saved.question;
             loginForm.style.display = 'none';
             recoverForm.style.display = 'block';
+            recoverForm.reset();
             document.getElementById('recError').style.display = 'none';
             document.getElementById('recSuccess').style.display = 'none';
+            recNewPassConfirm.classList.remove('input-error', 'input-success');
+            recMismatchAlert.style.display = 'none';
         });
 
         document.getElementById('linkToLogin').addEventListener('click', showLoginForm);
 
-        // Procesar Recuperación
+        // Reseteo total de usuario y datos clínicos
+        document.getElementById('linkResetAll').addEventListener('click', () => {
+            const confirmReset = confirm(
+                '⚠️ ATENCIÓN: ACCIÓN IRREVERSIBLE\n\n' +
+                'Si restablece el acceso para registrar un nuevo usuario:\n' +
+                '1. Se eliminarán las credenciales del usuario anterior.\n' +
+                '2. Se BORRARÁN TODOS los datos clínicos guardados por Gordon, Escalas y Planes de Atención de este navegador.\n\n' +
+                '¿Desea continuar y vaciar todos los registros?'
+            );
+
+            if (confirmReset) {
+                localStorage.clear();
+                sessionStorage.clear();
+                iframe.src = 'about:blank';
+                showRegisterForm();
+                alert('Se han borrado todos los datos anteriores. Puede activar un nuevo usuario.');
+            }
+        });
+
+        // Envío de Recuperación
         recoverForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const err = document.getElementById('recError');
@@ -304,7 +398,17 @@
 
             const answer = document.getElementById('recAnswer').value;
             const date = document.getElementById('recDate').value;
-            const newPass = document.getElementById('recNewPass').value;
+            const newPass = recNewPass.value;
+            const newPassConfirm = recNewPassConfirm.value;
+
+            if (newPass !== newPassConfirm) {
+                recNewPassConfirm.classList.add('input-error');
+                recMismatchAlert.style.display = 'block';
+                err.textContent = 'Las nuevas contraseñas no coinciden.';
+                err.style.display = 'block';
+                recNewPassConfirm.focus();
+                return;
+            }
 
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
             const ansHash = await hashData(answer);
@@ -332,7 +436,7 @@
             showLoginForm();
         });
 
-        // Pestañas de navegación
+        // Navegación de pestañas
         const buttons = document.querySelectorAll('.nav-btn');
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
