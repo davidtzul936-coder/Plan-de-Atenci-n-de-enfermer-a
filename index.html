@@ -9,7 +9,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #f4f7fc; height: 100vh; display: flex; flex-direction: column; color: #1e293b; }
         
-        /* Modal de Autenticación */
+        /* Modales */
         .auth-overlay {
             position: fixed; inset: 0; background: #0f172ae6; display: flex;
             align-items: center; justify-content: center; z-index: 1000; padding: 1rem;
@@ -30,7 +30,7 @@
         }
         .form-group input:focus { border-color: #0f172a; }
         
-        /* Validaciones visuales */
+        /* Validaciones */
         .input-error { border-color: #ef4444 !important; background-color: #fef2f2; }
         .input-success { border-color: #22c55e !important; background-color: #f0fdf4; }
         .field-feedback { font-size: 0.75rem; color: #ef4444; margin-top: 0.3rem; display: none; font-weight: 500; }
@@ -49,6 +49,25 @@
         .error-msg { background: #fee2e2; color: #b91c1c; padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.75rem; text-align: center; display: none; }
         .success-msg { background: #dcfce7; color: #15803d; padding: 0.6rem; border-radius: 6px; font-size: 0.8rem; margin-top: 0.75rem; text-align: center; display: none; }
 
+        /* Modal de Términos */
+        .terms-modal {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85);
+            display: none; align-items: center; justify-content: center; z-index: 2000; padding: 1rem;
+        }
+        .terms-card {
+            background: white; border-radius: 12px; width: 100%; max-width: 480px;
+            padding: 1.75rem; box-shadow: 0 15px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;
+        }
+        .terms-card h3 { font-size: 1.2rem; color: #0f172a; margin-bottom: 0.75rem; text-align: center; }
+        .terms-content { font-size: 0.85rem; color: #334155; line-height: 1.5; margin-bottom: 1.5rem; }
+        .terms-content ul { margin: 0.75rem 0 0.75rem 1.25rem; }
+        .terms-content li { margin-bottom: 0.5rem; }
+        .terms-buttons { display: flex; gap: 0.75rem; }
+        .btn-accept { flex: 1; padding: 0.7rem; background: #0f172a; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-accept:hover { background: #1e293b; }
+        .btn-cancel { padding: 0.7rem 1.2rem; background: #e2e8f0; color: #334155; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-cancel:hover { background: #cbd5e1; }
+
         /* Contenedor Principal */
         #app-container { display: none; height: 100vh; flex-direction: column; }
         header { background: #0f172a; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
@@ -62,14 +81,40 @@
         .nav-btn:hover { background: #cbd5e1; }
         .nav-btn.active { background: #0f172a; color: white; }
         
-        main { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; overflow: hidden; }
+        main { flex: 1; padding: 1.2rem 1.5rem 0.5rem 1.5rem; display: flex; flex-direction: column; overflow: hidden; }
         .iframe-wrapper { flex: 1; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
         iframe { width: 100%; height: 100%; border: none; }
+
+        /* Pie de página discreto */
+        footer {
+            text-align: center; padding: 0.5rem; font-size: 0.75rem; color: #94a3b8;
+        }
+        footer a { color: #64748b; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
-    <!-- Modal de Seguridad -->
+    <!-- Modal de Condiciones del Sistema -->
+    <div class="terms-modal" id="termsModal">
+        <div class="terms-card">
+            <h3>Condiciones de Uso y Privacidad</h3>
+            <div class="terms-content">
+                <p>Antes de activar su cuenta, por favor lea los siguientes aspectos clave sobre el funcionamiento de la aplicación:</p>
+                <ul>
+                    <li><strong>Almacenamiento 100% Local:</strong> Todos los datos clínicos, escalas, valoraciones y contraseñas se almacenan única y exclusivamente en la memoria local de su dispositivo (teléfono o computadora). No se suben a ningún servidor externo.</li>
+                    <li><strong>Privacidad de Acceso:</strong> Sus contraseñas e información no son visibles para otros usuarios ni terceros en internet; solo usted tiene acceso desde este navegador.</li>
+                    <li><strong>Advertencia de Reseteo:</strong> Al ser un almacenamiento estrictamente local, si olvida su contraseña y decide restablecer el sistema para crear un usuario nuevo, <strong>todos los registros y planes guardados previamente se eliminarán de forma irreversible</strong> por motivos de seguridad.</li>
+                </ul>
+            </div>
+            <div class="terms-buttons">
+                <button type="button" class="btn-cancel" id="btnRejectTerms">Regresar</button>
+                <button type="button" class="btn-accept" id="btnAcceptTerms">Acepto las condiciones y deseo activar mi cuenta</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Acceso / Login -->
     <div class="auth-overlay" id="authOverlay">
         <div class="auth-card">
             
@@ -111,7 +156,7 @@
             <!-- Vista: Login -->
             <form id="loginForm" style="display: none;">
                 <h2>Iniciar Sesión</h2>
-                <p class="subtitle">Hola Darwin-Ingrese sus credenciales para acceder</p>
+                <p class="subtitle">Ingrese sus credenciales para acceder</p>
                 
                 <div class="form-group">
                     <label>Usuario / Alias</label>
@@ -185,10 +230,12 @@
                 <iframe id="mainFrame" src="about:blank"></iframe>
             </div>
         </main>
+        <footer>
+            Soporte y sugerencias: <a href="mailto:dav.tzul56@gmail.com">dav.tzul56@gmail.com</a>
+        </footer>
     </div>
 
     <script>
-        // Cifrado criptográfico SHA-256 nativo
         async function hashData(text) {
             const encoder = new TextEncoder();
             const data = encoder.encode(text.trim().toLowerCase());
@@ -213,6 +260,11 @@
         const recoverForm = document.getElementById('recoverForm');
         const iframe = document.getElementById('mainFrame');
 
+        const termsModal = document.getElementById('termsModal');
+        const btnAcceptTerms = document.getElementById('btnAcceptTerms');
+        const btnRejectTerms = document.getElementById('btnRejectTerms');
+        let tempRegistrationData = null;
+
         const regPass = document.getElementById('regPass');
         const regPassConfirm = document.getElementById('regPassConfirm');
         const regMismatchAlert = document.getElementById('regMismatchAlert');
@@ -221,7 +273,6 @@
         const recNewPassConfirm = document.getElementById('recNewPassConfirm');
         const recMismatchAlert = document.getElementById('recMismatchAlert');
 
-        // Validación visual en tiempo real
         function checkPasswordsMatch(passInput, confirmInput, alertEl) {
             const p1 = passInput.value;
             const p2 = confirmInput.value;
@@ -296,8 +347,8 @@
             }
         }
 
-        // Registro de Usuario
-        registerForm.addEventListener('submit', async (e) => {
+        // Intercepta el registro para mostrar las condiciones primero
+        registerForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const err = document.getElementById('regError');
             err.style.display = 'none';
@@ -318,17 +369,33 @@
                 return;
             }
 
+            tempRegistrationData = { user, pass, question, answer, date };
+            termsModal.style.display = 'flex';
+        });
+
+        // Al aceptar las condiciones se guarda definitivamente
+        btnAcceptTerms.addEventListener('click', async () => {
+            if (!tempRegistrationData) return;
+
             const userData = {
-                user: user,
-                passHash: await hashData(pass),
-                question: question,
-                answerHash: await hashData(answer),
-                date: date
+                user: tempRegistrationData.user,
+                passHash: await hashData(tempRegistrationData.pass),
+                question: tempRegistrationData.question,
+                answerHash: await hashData(tempRegistrationData.answer),
+                date: tempRegistrationData.date
             };
 
             localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-            sessionStorage.setItem(SESSION_KEY, user);
-            showApp(user);
+            sessionStorage.setItem(SESSION_KEY, tempRegistrationData.user);
+            
+            termsModal.style.display = 'none';
+            showApp(tempRegistrationData.user);
+            tempRegistrationData = null;
+        });
+
+        btnRejectTerms.addEventListener('click', () => {
+            termsModal.style.display = 'none';
+            tempRegistrationData = null;
         });
 
         // Inicio de Sesión
@@ -352,7 +419,7 @@
             }
         });
 
-        // Formulario de Recuperación
+        // Navegación a Recuperación
         document.getElementById('linkToRecover').addEventListener('click', () => {
             const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
             if (!saved) return;
@@ -375,7 +442,7 @@
                 '⚠️ ATENCIÓN: ACCIÓN IRREVERSIBLE\n\n' +
                 'Si restablece el acceso para registrar un nuevo usuario:\n' +
                 '1. Se eliminarán las credenciales del usuario anterior.\n' +
-                '2. Se BORRARÁN TODOS los datos clínicos guardados por Gordon, Escalas y Planes de Atención de este navegador.\n\n' +
+                '2. Se BORRARÁN TODOS los datos clínicos guardados por Gordon, Escalas y Planes de Atención de este dispositivo.\n\n' +
                 '¿Desea continuar y vaciar todos los registros?'
             );
 
@@ -436,7 +503,7 @@
             showLoginForm();
         });
 
-        // Navegación de pestañas
+        // Pestañas
         const buttons = document.querySelectorAll('.nav-btn');
         buttons.forEach(btn => {
             btn.addEventListener('click', () => {
